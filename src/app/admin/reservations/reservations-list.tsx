@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/admin-shell";
 import { fetchAdminReservations } from "@/lib/admin-api";
 import { STATUS_LABELS } from "@/lib/constants";
 import { reservationDemoConfigs, type IndustryType } from "@/lib/reservation-demos";
+import { reservationTemplateConfigs, type TemplateType } from "@/lib/reservation-templates";
 import type { Reservation } from "@/lib/types";
 
 export function ReservationsList() {
@@ -69,6 +70,9 @@ export function ReservationsList() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <IndustryTag industryType={reservation.industryType} industryLabel={reservation.industryLabel} />
+                  {reservation.templateType ? (
+                    <TemplateTag templateType={reservation.templateType} templateLabel={reservation.templateLabel} />
+                  ) : null}
                   <p className="text-sm font-semibold text-slate-500">
                     {reservation.date} {reservation.time}
                   </p>
@@ -90,6 +94,22 @@ export function ReservationsList() {
         </div>
       ) : null}
     </AdminShell>
+  );
+}
+
+function TemplateTag({ templateType, templateLabel }: { templateType: TemplateType; templateLabel?: string | null }) {
+  const config = reservationTemplateConfigs[templateType];
+
+  return (
+    <span
+      className="rounded-md px-2 py-1 text-xs font-semibold"
+      style={{
+        backgroundColor: config.softAccent,
+        color: config.accent,
+      }}
+    >
+      {templateLabel ?? config.templateLabel}
+    </span>
   );
 }
 

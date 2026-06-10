@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin-shell";
 import { fetchAdminReservations, updateReservationStatus } from "@/lib/admin-api";
 import { STATUS_LABELS, type ReservationStatus } from "@/lib/constants";
 import { reservationDemoConfigs, type IndustryType } from "@/lib/reservation-demos";
+import { reservationTemplateConfigs } from "@/lib/reservation-templates";
 import type { Reservation } from "@/lib/types";
 
 const statuses = Object.keys(STATUS_LABELS) as ReservationStatus[];
@@ -19,6 +20,7 @@ export function ReservationDetail({ id }: { id: string }) {
 
   const reservation = useMemo(() => reservations.find((item) => item.id === id), [id, reservations]);
   const config = reservationDemoConfigs[reservation?.industryType ?? "salon"];
+  const templateConfig = reservation?.templateType ? reservationTemplateConfigs[reservation.templateType] : null;
 
   useEffect(() => {
     let ignore = false;
@@ -95,6 +97,14 @@ export function ReservationDetail({ id }: { id: string }) {
                 >
                   {reservation.industryLabel ?? config.industryLabel}
                 </span>
+                {templateConfig ? (
+                  <span
+                    className="ml-2 mt-3 inline-flex rounded-md px-3 py-1 text-sm font-semibold"
+                    style={{ backgroundColor: templateConfig.softAccent, color: templateConfig.accent }}
+                  >
+                    {reservation.templateLabel ?? templateConfig.templateLabel}
+                  </span>
+                ) : null}
               </div>
               <span className="rounded-md bg-commo-soft px-3 py-1 text-sm font-semibold text-commo-hover">
                 {STATUS_LABELS[reservation.status]}
@@ -171,7 +181,7 @@ export function ReservationDetail({ id }: { id: string }) {
 function getFieldRows(reservation: Reservation) {
   const industryType: IndustryType = reservation.industryType ?? "salon";
   const config = reservationDemoConfigs[industryType];
-  const fields = reservation.fields ?? {};
+  const fields = reservation.reservationDetails ?? reservation.fields ?? {};
 
   return config.fields
     .map((field) => ({

@@ -1,5 +1,6 @@
 import type { ReservationStatus } from "./constants";
 import type { IndustryType } from "./reservation-demos";
+import type { TemplateType } from "./reservation-templates";
 
 export type Customer = {
   id: string;
@@ -19,6 +20,8 @@ export type Reservation = {
   customerId: string;
   industryType: IndustryType;
   industryLabel?: string;
+  templateType?: TemplateType | null;
+  templateLabel?: string | null;
   lineUserId: string;
   lineDisplayName?: string;
   linePictureUrl?: string;
@@ -28,6 +31,7 @@ export type Reservation = {
   name: string;
   phone: string;
   fields?: Record<string, string>;
+  reservationDetails?: Record<string, string>;
   status: ReservationStatus;
   createdAt: string;
   updatedAt: string;

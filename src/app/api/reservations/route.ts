@@ -9,9 +9,11 @@ import {
   isIndustryType,
   type IndustryType,
 } from "@/lib/reservation-demos";
+import { getReservationTemplateConfig, isTemplateType, type TemplateType } from "@/lib/reservation-templates";
 
 type ReservationRequest = {
   industryType?: IndustryType;
+  templateType?: TemplateType;
   lineUserId?: string;
   lineDisplayName?: string;
   linePictureUrl?: string;
@@ -25,17 +27,25 @@ export async function POST(request: Request) {
     const lineDisplayName = body.lineDisplayName?.trim() ?? "";
     const linePictureUrl = body.linePictureUrl?.trim() ?? "";
     const fields = sanitizeFields(body.fields);
-    const industryType = body.industryType?.trim() ?? "salon";
+    const requestedTemplateType = body.templateType?.trim();
+    const requestedIndustryType = body.industryType?.trim() ?? "salon";
 
     if (!lineUserId) {
       return NextResponse.json({ error: "LINE userIdが不足しています。" }, { status: 400 });
     }
 
-    if (!isIndustryType(industryType)) {
+    if (requestedTemplateType && !isTemplateType(requestedTemplateType)) {
+      return NextResponse.json({ error: "テンプレートタイプが不正です。" }, { status: 400 });
+    }
+
+    if (!requestedTemplateType && !isIndustryType(requestedIndustryType)) {
       return NextResponse.json({ error: "業種タイプが不正です。" }, { status: 400 });
     }
 
-    const config = getReservationDemoConfig(industryType);
+    const config =
+      requestedTemplateType && isTemplateType(requestedTemplateType)
+        ? getReservationTemplateConfig(requestedTemplateType)
+        : getReservationDemoConfig(isIndustryType(requestedIndustryType) ? requestedIndustryType : "salon");
     const missingField = config.fields.find((field) => field.required && !fields[field.key]?.trim());
 
     if (missingField) {
@@ -84,6 +94,8 @@ export async function POST(request: Request) {
         customerId: customerRef.id,
         industryType: config.industryType,
         industryLabel: config.industryLabel,
+        templateType: "templateType" in config ? config.templateType : null,
+        templateLabel: "templateLabel" in config ? config.templateLabel : null,
         lineUserId,
         lineDisplayName,
         linePictureUrl,
@@ -93,6 +105,7 @@ export async function POST(request: Request) {
         name: summary.name,
         phone: summary.phone,
         fields,
+        reservationDetails: fields,
         status: "reserved",
         createdAt: now,
         updatedAt: now,
@@ -102,20 +115,29 @@ export async function POST(request: Request) {
     let lineNotification: "sent" | "failed" = "sent";
 
     try {
+      const messageLines = [
+        "ご予約ありがとうございます。",
+        "",
+        "【予約内容】",
+        `業種：${config.industryLabel}`,
+      ];
+
+      if ("templateLabel" in config) {
+        messageLines.push(`テンプレート：${config.templateLabel}`);
+      }
+
+      messageLines.push(
+        `メニュー/プラン：${summary.plan}`,
+        `日時：${summary.dateTime}`,
+        `お名前：${summary.name}`,
+        `電話番号：${summary.phone}`,
+        "",
+        "内容を確認のうえ、当日はお気をつけてお越しください。",
+      );
+
       await pushLineMessage({
         to: lineUserId,
-        text: [
-          "ご予約ありがとうございます。",
-          "",
-          "【予約内容】",
-          `業種：${config.industryLabel}`,
-          `メニュー/プラン：${summary.plan}`,
-          `日時：${summary.dateTime}`,
-          `お名前：${summary.name}`,
-          `電話番号：${summary.phone}`,
-          "",
-          "内容を確認のうえ、当日はお気をつけてお越しください。",
-        ].join("\n"),
+        text: messageLines.join("\n"),
       });
     } catch (cause) {
       lineNotification = "failed";
@@ -126,6 +148,7 @@ export async function POST(request: Request) {
       id: reservationRef.id,
       customerId: customerRef.id,
       industryType: config.industryType,
+      templateType: "templateType" in config ? config.templateType : null,
       lineNotification,
     });
   } catch (cause) {
