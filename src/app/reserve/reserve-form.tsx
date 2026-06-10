@@ -15,7 +15,7 @@ import {
 export function ReserveForm({ industryType = "salon" }: { industryType?: IndustryType }) {
   const config = getReservationDemoConfig(industryType);
   const router = useRouter();
-  const { profile, liffState } = useLineProfile();
+  const { profile, liffState } = useLineProfile({ loginRedirectPath: "/demo" });
   const [values, setValues] = useState<Record<string, string>>(config.defaults);
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState("");

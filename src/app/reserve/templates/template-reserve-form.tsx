@@ -14,7 +14,7 @@ import {
 export function TemplateReserveForm({ templateType }: { templateType: TemplateType }) {
   const config = getReservationTemplateConfig(templateType);
   const router = useRouter();
-  const { profile, liffState } = useLineProfile();
+  const { profile, liffState } = useLineProfile({ loginRedirectPath: "/demo" });
   const [values, setValues] = useState<Record<string, string>>(config.defaults);
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState("");

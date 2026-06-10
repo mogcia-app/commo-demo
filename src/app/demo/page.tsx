@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LiffWarmup } from "@/components/liff-warmup";
 import { reservationDemoConfigs } from "@/lib/reservation-demos";
 
 const demos = [
@@ -22,6 +23,7 @@ const demos = [
 export default function DemoPage() {
   return (
     <main className="min-h-screen bg-white">
+      <LiffWarmup />
       <section className="mx-auto w-full max-w-6xl px-5 py-10">
         <p className="text-sm font-semibold text-commo-main">commo. demo library</p>
         <h1 className="mt-3 text-4xl font-bold tracking-normal text-commo-ink">業種別LINE予約デモ</h1>

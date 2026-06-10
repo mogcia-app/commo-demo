@@ -14,7 +14,7 @@ const demoProfile: LineProfile = {
   pictureUrl: "",
 };
 
-export function useLineProfile() {
+export function useLineProfile(options?: { loginRedirectPath?: string }) {
   const [profile, setProfile] = useState<LineProfile | null>(null);
   const [liffState, setLiffState] = useState("LIFFを確認しています");
 
@@ -41,7 +41,10 @@ export function useLineProfile() {
         }
 
         if (!liff.isLoggedIn()) {
-          liff.login();
+          setLiffState("LINE認証へ移動しています");
+          liff.login({
+            redirectUri: `${window.location.origin}${options?.loginRedirectPath ?? window.location.pathname}`,
+          });
           return;
         }
 
@@ -68,7 +71,7 @@ export function useLineProfile() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [options?.loginRedirectPath]);
 
   return { profile, liffState };
 }
