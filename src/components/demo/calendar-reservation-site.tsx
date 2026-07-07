@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
 import type { BookingSite } from "@/lib/booking-sites";
-import type { Menu } from "@/lib/storefront/types";
+import type { AvailableSlot, Menu } from "@/lib/storefront/types";
 
 type CalendarStep = "menu" | "datetime" | "confirm" | "customer" | "complete";
 
@@ -79,9 +79,6 @@ const staffOptions: StaffOption[] = [
   { id: "aoi", name: "Aoi", role: "Top stylist", fee: "¥1,100" },
 ];
 
-const disabledSlots = new Set(["12:00", "19:00"]);
-const limitedSlots = new Set(["11:00", "16:00", "18:00"]);
-const limitedDateValues = new Set([16, 22, 27]);
 const weekLabels = ["日", "月", "火", "水", "木", "金", "土"];
 const brown = "#735942";
 
@@ -95,8 +92,8 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const { profile } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<CalendarStep>("menu");
   const [selectedMenuId, setSelectedMenuId] = useState(demoMenus[0].id);
-  const [selectedDate, setSelectedDate] = useState("2026-07-20");
-  const [selectedTime, setSelectedTime] = useState("14:00");
+  const [selectedDate, setSelectedDate] = useState(getTodayValue());
+  const [selectedTime, setSelectedTime] = useState("");
   const [selectedStaffId, setSelectedStaffId] = useState(staffOptions[0].id);
   const [customer, setCustomer] = useState<CustomerForm>({
     name: "",
@@ -107,6 +104,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
     agreed: false,
   });
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -144,11 +142,52 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
     };
   }, [isLiveReservation]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadAvailableSlots() {
+      const response = await fetch("/api/available-slots");
+
+      if (!response.ok) {
+        return;
+      }
+
+      const body = (await response.json()) as { availableSlots?: AvailableSlot[] };
+      const slots = body.availableSlots ?? [];
+
+      if (ignore) {
+        return;
+      }
+
+      setAvailableSlots(slots);
+
+      const firstSlotForSelectedDate = slots.find((slot) => slot.date === selectedDate);
+      const selectedSlotStillAvailable = slots.some((slot) => slot.date === selectedDate && slot.time === selectedTime);
+      const fallbackSlot = firstSlotForSelectedDate ?? slots[0];
+
+      if (!selectedSlotStillAvailable && fallbackSlot) {
+        setSelectedDate(fallbackSlot.date);
+        setSelectedTime(fallbackSlot.time);
+      }
+    }
+
+    void loadAvailableSlots();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedDate, selectedTime]);
+
   async function submitReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canSubmit) {
       setError("必須項目を入力し、利用規約に同意してください。");
+      return;
+    }
+
+    if (!selectedDate || !selectedTime) {
+      setError("予約日時を選択してください。");
       return;
     }
 
@@ -229,6 +268,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
             selectedDate={selectedDate}
             selectedTime={selectedTime}
             selectedStaffId={selectedStaffId}
+            availableSlots={availableSlots}
             onStaffChange={setSelectedStaffId}
             onDateChange={setSelectedDate}
             onTimeChange={setSelectedTime}
@@ -375,6 +415,7 @@ function DateTimeStep({
   selectedDate,
   selectedTime,
   selectedStaffId,
+  availableSlots,
   onStaffChange,
   onDateChange,
   onTimeChange,
@@ -384,12 +425,14 @@ function DateTimeStep({
   selectedDate: string;
   selectedTime: string;
   selectedStaffId: string;
+  availableSlots: AvailableSlot[];
   onStaffChange: (staffId: string) => void;
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
   onNext: () => void;
 }) {
   const selectedDateLabel = formatJapaneseDate(selectedDate);
+  const slotsForSelectedDate = availableSlots.filter((slot) => slot.date === selectedDate);
 
   return (
     <section className="space-y-4">
@@ -406,17 +449,19 @@ function DateTimeStep({
             <p className="mt-0.5 text-xs font-bold text-[#3F352D]">{selectedDateLabel}</p>
           </div>
         </div>
-        <MonthCalendar selectedDate={selectedDate} onSelect={onDateChange} />
+        <MonthCalendar selectedDate={selectedDate} availableSlots={availableSlots} onSelect={onDateChange} />
       </Card>
       <Card>
         <div className="flex items-start justify-between gap-3">
           <div>
             <SectionTitle>時間を選択してください</SectionTitle>
-            <p className="mt-2 text-xs text-[#7A6C5F]">{selectedTime}〜{endTime(selectedTime, selectedMenu.duration)}で予約</p>
+            <p className="mt-2 text-xs text-[#7A6C5F]">
+              {selectedTime ? `${selectedTime}〜${endTime(selectedTime, selectedMenu.duration)}で予約` : "空き枠を選択してください"}
+            </p>
           </div>
-          <span className="rounded-full bg-[#735942] px-3 py-1 text-xs font-bold text-white">{selectedTime}</span>
+          {selectedTime ? <span className="rounded-full bg-[#735942] px-3 py-1 text-xs font-bold text-white">{selectedTime}</span> : null}
         </div>
-        <TimeSlotPicker selectedTime={selectedTime} onTimeChange={onTimeChange} />
+        <TimeSlotPicker selectedTime={selectedTime} slots={slotsForSelectedDate} onTimeChange={onTimeChange} />
       </Card>
       <PrimaryButton onClick={onNext}>この日時で進む</PrimaryButton>
     </section>
@@ -580,8 +625,22 @@ function CompleteStep({
   );
 }
 
-function MonthCalendar({ selectedDate, onSelect }: { selectedDate: string; onSelect: (date: string) => void }) {
-  const days = buildCalendarDays();
+function MonthCalendar({
+  selectedDate,
+  availableSlots,
+  onSelect,
+}: {
+  selectedDate: string;
+  availableSlots: AvailableSlot[];
+  onSelect: (date: string) => void;
+}) {
+  const selectedMonth = getMonthValue(selectedDate);
+  const days = buildCalendarDays(selectedMonth.year, selectedMonth.month);
+  const remainingByDate = new Map<string, number>();
+
+  for (const slot of availableSlots) {
+    remainingByDate.set(slot.date, (remainingByDate.get(slot.date) ?? 0) + slot.remaining);
+  }
 
   return (
     <div className="mt-3">
@@ -589,7 +648,9 @@ function MonthCalendar({ selectedDate, onSelect }: { selectedDate: string; onSel
         <button type="button" className="h-9 w-9 rounded-full text-xl text-[#6D5A47]">
           ‹
         </button>
-        <p className="text-sm font-bold">2026年7月</p>
+        <p className="text-sm font-bold">
+          {selectedMonth.year}年{selectedMonth.month + 1}月
+        </p>
         <button type="button" className="h-9 w-9 rounded-full text-xl text-[#6D5A47]">
           ›
         </button>
@@ -603,10 +664,11 @@ function MonthCalendar({ selectedDate, onSelect }: { selectedDate: string; onSel
       </div>
       <div className="mt-1 grid grid-cols-7 gap-1 text-center text-sm">
         {days.map((day, index) => {
-          const date = `2026-07-${String(day.value).padStart(2, "0")}`;
+          const date = formatDateValue(selectedMonth.year, selectedMonth.month, day.value);
           const selected = selectedDate === date;
-          const disabled = !day.current || day.value < 10;
-          const limited = day.current && limitedDateValues.has(day.value);
+          const remaining = remainingByDate.get(date) ?? 0;
+          const disabled = !day.current || remaining <= 0;
+          const limited = remaining > 0 && remaining <= 2;
 
           return (
             <button
@@ -636,12 +698,20 @@ function MonthCalendar({ selectedDate, onSelect }: { selectedDate: string; onSel
   );
 }
 
-function TimeSlotPicker({ selectedTime, onTimeChange }: { selectedTime: string; onTimeChange: (time: string) => void }) {
-  const groups = [
-    { label: "午前", slots: ["9:00", "10:00", "11:00"] },
-    { label: "午後", slots: ["12:00", "13:00", "14:00", "15:00", "16:00"] },
-    { label: "夕方", slots: ["17:00", "18:00", "19:00"] },
-  ];
+function TimeSlotPicker({
+  selectedTime,
+  slots,
+  onTimeChange,
+}: {
+  selectedTime: string;
+  slots: AvailableSlot[];
+  onTimeChange: (time: string) => void;
+}) {
+  const groups = groupSlotsByTime(slots);
+
+  if (!slots.length) {
+    return <p className="mt-4 rounded-xl bg-[#F5F1EC] px-3 py-4 text-center text-xs font-semibold text-[#7A6C5F]">選択できる空き枠がありません。</p>;
+  }
 
   return (
     <div className="mt-4 space-y-4">
@@ -649,17 +719,17 @@ function TimeSlotPicker({ selectedTime, onTimeChange }: { selectedTime: string; 
         <div key={group.label}>
           <p className="mb-2 text-xs font-bold text-[#7A6C5F]">{group.label}</p>
           <div className="grid grid-cols-3 gap-2">
-            {group.slots.map((time) => {
-              const selected = selectedTime === time;
-              const disabled = disabledSlots.has(time);
-              const limited = limitedSlots.has(time);
+            {group.slots.map((slot) => {
+              const selected = selectedTime === slot.time;
+              const disabled = slot.remaining <= 0 || slot.available === false;
+              const limited = slot.remaining > 0 && slot.remaining <= 2;
 
               return (
                 <button
-                  key={time}
+                  key={slot.time}
                   type="button"
                   disabled={disabled}
-                  onClick={() => onTimeChange(time)}
+                  onClick={() => onTimeChange(slot.time)}
                   className="min-h-14 rounded-xl border px-2 py-2 text-sm font-semibold transition disabled:bg-[#F5F1EC] disabled:text-[#B8AA9D]"
                   style={{
                     borderColor: selected ? brown : limited ? "#D6B879" : "#DED3C7",
@@ -667,8 +737,10 @@ function TimeSlotPicker({ selectedTime, onTimeChange }: { selectedTime: string; 
                     color: selected ? "#FFFFFF" : "#473C32",
                   }}
                 >
-                  <span className="block">{disabled ? "-" : time}</span>
-                  <span className="mt-1 block text-[10px] font-medium opacity-75">{disabled ? "満席" : limited ? "残りわずか" : "空きあり"}</span>
+                  <span className="block">{disabled ? "-" : slot.time}</span>
+                  <span className="mt-1 block text-[10px] font-medium opacity-75">
+                    {disabled ? "満席" : limited ? `残り${slot.remaining}` : "空きあり"}
+                  </span>
                 </button>
               );
             })}
@@ -857,15 +929,54 @@ function TextField({ label, value, placeholder, onChange }: { label: string; val
   );
 }
 
-function buildCalendarDays() {
-  const previous = [28, 29, 30];
-  const current = Array.from({ length: 31 }, (_, index) => index + 1);
+function buildCalendarDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const currentMonthLength = new Date(year, month + 1, 0).getDate();
+  const previousMonthLength = new Date(year, month, 0).getDate();
+  const previous = Array.from({ length: firstDay }, (_, index) => previousMonthLength - firstDay + index + 1);
+  const current = Array.from({ length: currentMonthLength }, (_, index) => index + 1);
+  const nextLength = Math.max(42 - previous.length - current.length, 0);
+  const next = Array.from({ length: nextLength }, (_, index) => index + 1);
 
   return [
     ...previous.map((value) => ({ value, current: false })),
     ...current.map((value) => ({ value, current: true })),
-    { value: 1, current: false },
+    ...next.map((value) => ({ value, current: false })),
   ];
+}
+
+function groupSlotsByTime(slots: AvailableSlot[]) {
+  const sortedSlots = [...slots].sort((a, b) => a.time.localeCompare(b.time));
+
+  return [
+    { label: "午前", slots: sortedSlots.filter((slot) => getHour(slot.time) < 12) },
+    { label: "午後", slots: sortedSlots.filter((slot) => getHour(slot.time) >= 12 && getHour(slot.time) < 17) },
+    { label: "夕方", slots: sortedSlots.filter((slot) => getHour(slot.time) >= 17) },
+  ].filter((group) => group.slots.length);
+}
+
+function getHour(time: string) {
+  return Number(time.split(":")[0] ?? 0);
+}
+
+function getMonthValue(date: string) {
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() };
+  }
+
+  return { year: parsed.getFullYear(), month: parsed.getMonth() };
+}
+
+function formatDateValue(year: number, month: number, date: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
+}
+
+function getTodayValue() {
+  const now = new Date();
+  return formatDateValue(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 function formatJapaneseDate(date: string) {

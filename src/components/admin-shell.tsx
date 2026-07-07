@@ -51,6 +51,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
             >
               予約一覧
             </Link>
+            <Link
+              href="/admin/availability"
+              className={`text-sm font-semibold ${pathname === "/admin/availability" ? "text-commo-hover" : "text-slate-500"}`}
+            >
+              空き枠
+            </Link>
             <button
               type="button"
               onClick={async () => {

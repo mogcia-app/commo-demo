@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import {
-  mockAvailableSlots,
   mockCoupons,
   mockMenus,
   mockQuestions,
@@ -76,6 +75,8 @@ type AvailabilityDocument = {
   slots?: Array<{
     time?: string;
     available?: boolean;
+    capacity?: number;
+    booked?: number;
     remaining?: number;
   }>;
 };
@@ -215,10 +216,10 @@ export async function getAvailableSlots(): Promise<AvailableSlot[]> {
     const snapshot = await getAdminDb().collection("availability").orderBy("__name__", "asc").limit(60).get();
     const slots = snapshot.docs.flatMap((doc) => buildAvailableSlotsFromDocument(doc.id, doc.data() as AvailabilityDocument));
 
-    return slots.length ? slots : mockAvailableSlots;
+    return slots;
   } catch (cause) {
-    console.warn("Firestoreのavailability取得に失敗したためモックにフォールバックします", cause);
-    return mockAvailableSlots;
+    console.warn("Firestoreのavailability取得に失敗しました", cause);
+    return [];
   }
 }
 
@@ -275,11 +276,33 @@ function buildStaffFromDocument(id: string, data: StaffDocument): Staff {
 
 function buildAvailableSlotsFromDocument(date: string, data: AvailabilityDocument): AvailableSlot[] {
   return (data.slots ?? [])
-    .filter((slot) => slot.available !== false && Boolean(slot.time?.trim()))
+    .map((slot) => {
+      const capacity = Number(slot.capacity);
+      const booked = Number(slot.booked);
+      const remaining =
+        typeof slot.remaining === "number"
+          ? slot.remaining
+          : Number.isFinite(capacity)
+            ? Math.max(capacity - (Number.isFinite(booked) ? booked : 0), 0)
+            : 1;
+
+      return {
+        date,
+        time: slot.time?.trim() ?? "",
+        capacity: Number.isFinite(capacity) ? capacity : undefined,
+        booked: Number.isFinite(booked) ? booked : undefined,
+        remaining,
+        available: slot.available ?? true,
+      };
+    })
+    .filter((slot) => slot.available !== false && Boolean(slot.time) && slot.remaining > 0)
     .map((slot) => ({
-      date,
-      time: slot.time?.trim() ?? "",
-      remaining: slot.remaining ?? 1,
+      date: slot.date,
+      time: slot.time,
+      capacity: slot.capacity,
+      booked: slot.booked,
+      remaining: slot.remaining,
+      available: slot.available,
     }));
 }
 

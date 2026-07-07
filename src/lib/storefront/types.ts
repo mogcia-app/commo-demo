@@ -160,5 +160,8 @@ export type Reservation = {
 export type AvailableSlot = {
   date: string;
   time: string;
+  capacity?: number;
+  booked?: number;
   remaining: number;
+  available?: boolean;
 };

@@ -30,6 +30,7 @@ export async function createReservation(input: CreateReservationInput): Promise<
   const lineUserRef = db.collection("lineUsers").doc(toSafeDocId(input.lineUserId));
   const reservationRef = db.collection("reservations").doc();
   const analyticsEventRef = db.collection("analyticsEvents").doc();
+  const availabilityRef = db.collection("availability").doc(input.date);
   const startDate = parseStoreDateTime(input.date, input.time);
   const endDate = new Date(startDate.getTime() + input.menu.durationMinutes * 60 * 1000);
   const startAt = Timestamp.fromDate(startDate);
@@ -40,6 +41,37 @@ export async function createReservation(input: CreateReservationInput): Promise<
   await db.runTransaction(async (transaction) => {
     const existingCustomer = await transaction.get(customerRef);
     const existingLineUser = await transaction.get(lineUserRef);
+    const existingAvailability = await transaction.get(availabilityRef);
+
+    if (existingAvailability.exists) {
+      const slots = normalizeAvailabilitySlots(existingAvailability.data()?.slots);
+      const slotIndex = slots.findIndex((slot) => slot.time === input.time);
+
+      if (slotIndex === -1) {
+        throw new Error("選択した日時は現在予約できません。別の日時を選択してください。");
+      }
+
+      const slot = slots[slotIndex];
+
+      if (slot.available === false || slot.remaining <= 0) {
+        throw new Error("選択した日時は満席です。別の日時を選択してください。");
+      }
+
+      slots[slotIndex] = {
+        ...slot,
+        booked: slot.booked + 1,
+        remaining: slot.remaining - 1,
+      };
+
+      transaction.set(
+        availabilityRef,
+        {
+          slots,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+    }
 
     transaction.set(
       customerRef,
@@ -192,6 +224,56 @@ export async function createAnalyticsEvent(input: {
   });
 
   return { id: eventRef.id };
+}
+
+type AvailabilitySlotDocument = {
+  time: string;
+  available: boolean;
+  capacity: number;
+  booked: number;
+  remaining: number;
+};
+
+function normalizeAvailabilitySlots(value: unknown): AvailabilitySlotDocument[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((slot) => {
+      if (!slot || typeof slot !== "object" || Array.isArray(slot)) {
+        return null;
+      }
+
+      const data = slot as Record<string, unknown>;
+      const time = typeof data.time === "string" ? data.time.trim() : "";
+      const capacity = toNonNegativeNumber(data.capacity, 1);
+      const booked = toNonNegativeNumber(data.booked, 0);
+      const remaining = toNonNegativeNumber(data.remaining, Math.max(capacity - booked, 0));
+
+      if (!time) {
+        return null;
+      }
+
+      return {
+        time,
+        available: data.available !== false,
+        capacity,
+        booked,
+        remaining,
+      };
+    })
+    .filter((slot): slot is AvailabilitySlotDocument => Boolean(slot));
+}
+
+function toNonNegativeNumber(value: unknown, fallback: number) {
+  const numberValue = typeof value === "number" ? value : Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    return fallback;
+  }
+
+  return Math.floor(numberValue);
 }
 
 function parseStoreDateTime(date: string, time: string) {
