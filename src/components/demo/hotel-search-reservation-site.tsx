@@ -167,7 +167,7 @@ export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
           throw new Error("LINEプロフィールを取得中です。少し待ってから再度お試しください。");
         }
 
-        const selectedMenu = menus[0];
+        const selectedMenu = menus.find((menu) => menu.id === selectedPlanId) ?? menus[0];
 
         if (!selectedMenu) {
           throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");

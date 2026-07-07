@@ -112,7 +112,7 @@ export function SalonCardsReservationSite({ site }: { site: DemoSite }) {
           throw new Error("LINEプロフィールを取得中です。少し待ってから再度お試しください。");
         }
 
-        const selectedLiveMenu = menus[0];
+        const selectedLiveMenu = menus.find((menu) => menu.id === selectedMenuId) ?? menus[0];
 
         if (!selectedLiveMenu) {
           throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");
