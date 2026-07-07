@@ -34,12 +34,6 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
         const liff = (await import("@line/liff")).default;
         await liff.init({ liffId });
 
-        if (!liff.isInClient()) {
-          setProfile(demoProfile);
-          setLiffState("ブラウザプレビュー用のデモプロフィールで表示中");
-          return;
-        }
-
         if (!liff.isLoggedIn()) {
           setLiffState("LINE認証へ移動しています");
           liff.login({
@@ -55,7 +49,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
             displayName: lineProfile.displayName,
             pictureUrl: lineProfile.pictureUrl ?? "",
           });
-          setLiffState("LINEプロフィールを取得しました");
+          setLiffState(liff.isInClient() ? "LINEプロフィールを取得しました" : "LINEログインでプロフィールを取得しました");
         }
       } catch (cause) {
         console.error(cause);

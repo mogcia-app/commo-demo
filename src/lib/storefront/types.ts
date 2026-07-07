@@ -99,9 +99,12 @@ export type Menu = {
   name: string;
   description: string;
   priceLabel: string;
+  price?: number;
   durationMinutes: number;
   imageUrl?: string;
   category: string;
+  enabled?: boolean;
+  sortOrder?: number;
 };
 
 export type Coupon = {
@@ -116,6 +119,9 @@ export type Staff = {
   name: string;
   role: string;
   profile: string;
+  imageUrl?: string;
+  enabled?: boolean;
+  sortOrder?: number;
 };
 
 export type Question = {

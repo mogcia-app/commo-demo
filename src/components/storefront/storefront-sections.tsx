@@ -53,8 +53,16 @@ export function MenuList({ menus }: { menus: Menu[] }) {
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         {menus.map((menu) => (
           <article key={menu.id} className="rounded-[var(--store-radius)] bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="grid gap-4 sm:grid-cols-[128px_1fr]">
+              {menu.imageUrl ? (
+                <span
+                  aria-label={menu.name}
+                  className="block aspect-[4/3] rounded-[var(--store-radius)] bg-cover bg-center"
+                  style={{ backgroundImage: `url(${menu.imageUrl})` }}
+                />
+              ) : null}
+              <div className="flex min-w-0 items-start justify-between gap-4">
+                <div className="min-w-0">
                 <p className="text-xs font-bold uppercase" style={{ color: "var(--store-primary)" }}>
                   {menu.category}
                 </p>
@@ -63,7 +71,8 @@ export function MenuList({ menus }: { menus: Menu[] }) {
                   {menu.description}
                 </p>
               </div>
-              <p className="shrink-0 text-sm font-bold">{menu.priceLabel}</p>
+                {menu.priceLabel ? <p className="shrink-0 text-sm font-bold">{menu.priceLabel}</p> : null}
+              </div>
             </div>
           </article>
         ))}
@@ -112,6 +121,13 @@ export function StaffList({ staff }: { staff: Staff[] }) {
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         {staff.map((member) => (
           <article key={member.id} className="rounded-[var(--store-radius)] bg-white p-5 shadow-sm">
+            {member.imageUrl ? (
+              <span
+                aria-label={member.name}
+                className="mb-4 block aspect-[4/3] rounded-[var(--store-radius)] bg-cover bg-center"
+                style={{ backgroundImage: `url(${member.imageUrl})` }}
+              />
+            ) : null}
             <p className="text-sm font-bold" style={{ color: "var(--store-primary)" }}>
               {member.role}
             </p>

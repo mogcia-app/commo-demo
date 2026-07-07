@@ -1,10 +1,11 @@
 type PushMessageParams = {
   to: string;
   text: string;
+  channelAccessToken?: string;
 };
 
-export async function pushLineMessage({ to, text }: PushMessageParams) {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+export async function pushLineMessage({ to, text, channelAccessToken }: PushMessageParams) {
+  const token = channelAccessToken ?? process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
   if (!token) {
     throw new Error("LINE_CHANNEL_ACCESS_TOKENが未設定です。LINE Developersのチャネルアクセストークンを設定してください。");

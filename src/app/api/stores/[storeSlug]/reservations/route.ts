@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendReservationCompleteLineMessage } from "@/lib/storefront/line-message-service";
 import { createReservation } from "@/lib/storefront/reservation-service";
 import { getMenusForStore, getQuestionsForStore, resolveActiveStoreForApi } from "@/lib/storefront/store-service";
 
@@ -88,10 +89,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ sto
     campaignId: body.campaignId?.trim(),
     couponId: body.couponId?.trim(),
   });
+  const lineNotification = await sendReservationCompleteLineMessage({
+    store,
+    reservation,
+    menu: selectedMenu,
+    lineUserId: body.lineUserId.trim(),
+    customerName: body.displayName.trim(),
+    phone: body.phone.trim(),
+    email: body.email?.trim(),
+    staffName: answers.staffName,
+    paymentMethod: answers.paymentMethod,
+  });
 
   return NextResponse.json({
     reservation,
-    lineNotification: "queued",
+    lineNotification,
     resolvedStoreId: store.id,
   });
 }

@@ -25,14 +25,23 @@ export function MenuSelector({
               boxShadow: selected ? "0 0 0 2px var(--store-secondary)" : undefined,
             }}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
+            <div className="grid gap-3 sm:grid-cols-[112px_1fr]">
+              {menu.imageUrl ? (
+                <span
+                  aria-label={menu.name}
+                  className="block aspect-[4/3] rounded-[var(--store-radius)] bg-cover bg-center"
+                  style={{ backgroundImage: `url(${menu.imageUrl})` }}
+                />
+              ) : null}
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
                 <p className="font-bold">{menu.name}</p>
                 <p className="mt-1 text-sm leading-6" style={{ color: "var(--store-muted)" }}>
                   {menu.description}
                 </p>
               </div>
-              <span className="shrink-0 text-sm font-bold">{menu.priceLabel}</span>
+                {menu.priceLabel ? <span className="shrink-0 text-sm font-bold">{menu.priceLabel}</span> : null}
+              </div>
             </div>
           </button>
         );
@@ -71,6 +80,13 @@ export function StaffSelector({
           className="rounded-[var(--store-radius)] border bg-white p-4 text-left"
           style={{ borderColor: value === member.id ? "var(--store-primary)" : "#E2E8F0" }}
         >
+          {member.imageUrl ? (
+            <span
+              aria-label={member.name}
+              className="mb-3 block aspect-[4/3] rounded-[var(--store-radius)] bg-cover bg-center"
+              style={{ backgroundImage: `url(${member.imageUrl})` }}
+            />
+          ) : null}
           <p className="text-xs font-bold" style={{ color: "var(--store-primary)" }}>
             {member.role}
           </p>
@@ -116,6 +132,11 @@ export function Calendar({
 
   return (
     <div className="grid gap-2 md:grid-cols-2">
+      {!availableSlots.length ? (
+        <p className="rounded-[var(--store-radius)] bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500 md:col-span-2">
+          現在選択できる空き枠がありません。
+        </p>
+      ) : null}
       {availableSlots.map((slot) => {
         const key = `${slot.date} ${slot.time}`;
         const selected = value === key;
