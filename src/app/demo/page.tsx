@@ -1,74 +1,151 @@
 import Link from "next/link";
-import { LiffWarmup } from "@/components/liff-warmup";
-import { reservationDemoConfigs } from "@/lib/reservation-demos";
+import { redirect } from "next/navigation";
+import { demoSites, getDemoSiteBySlug, getDemoSiteConfig } from "@/lib/demo-sites";
 
-const demos = [
-  {
-    href: "/reserve/hotel",
-    config: reservationDemoConfigs.hotel,
-    sample: "客室選択から代表者情報まで、宿泊予約の自然な流れを再現します。",
-  },
-  {
-    href: "/reserve/golf",
-    config: reservationDemoConfigs.golf,
-    sample: "来場日、スタート時間、コンペ利用までプレー予約に必要な項目を確認できます。",
-  },
-  {
-    href: "/reserve/salon",
-    config: reservationDemoConfigs.salon,
-    sample: "メニュー、スタッフ、来店日時をスマホで選びやすく見せられます。",
-  },
-];
+const defaultStoreSlug = "company-a";
+const siteKeys = ["site", "demoSite", "demoSiteSlug", "template", "templateType", "pattern"];
+const storeSlugKeys = ["storeSlug", "slug", "store"];
+const passThroughKeys = ["storeSlug", "campaignId", "couponId"];
 
-export default function DemoPage() {
+type DemoPageSearchParams = Record<string, string | string[] | undefined>;
+
+export default async function DemoPage({
+  searchParams,
+}: {
+  searchParams?: Promise<DemoPageSearchParams>;
+}) {
+  const currentParams = await searchParams;
+  const statePath = getFirstValue(currentParams?.["liff.state"]);
+  const stateDestination = getStateDestination(statePath);
+
+  if (stateDestination) {
+    redirect(stateDestination);
+  }
+
+  const stateParams = getStateParams(statePath);
+  const siteSlug = getFirstParam(currentParams, siteKeys) ?? getFirstParamFromUrlSearchParams(stateParams, siteKeys);
+  const site = siteSlug ? getDemoSiteBySlug(siteSlug) : null;
+
+  if (site) {
+    const destination = new URLSearchParams();
+    const storeSlug = getFirstParam(currentParams, storeSlugKeys) ?? getFirstParamFromUrlSearchParams(stateParams, storeSlugKeys) ?? defaultStoreSlug;
+
+    destination.set("storeSlug", storeSlug);
+    destination.set("saveMode", "live");
+
+    for (const key of passThroughKeys) {
+      const value = getFirstValue(currentParams?.[key]) ?? stateParams.get(key);
+
+      if (value) {
+        destination.set(key, value);
+      }
+    }
+
+    redirect(`/demo/${site.slug}?${destination.toString()}`);
+  }
+
   return (
-    <main className="min-h-screen bg-white">
-      <LiffWarmup />
-      <section className="mx-auto w-full max-w-6xl px-5 py-10">
-        <p className="text-sm font-semibold text-commo-main">commo. demo library</p>
-        <h1 className="mt-3 text-4xl font-bold tracking-normal text-commo-ink">業種別LINE予約デモ</h1>
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-          <p className="max-w-2xl text-base leading-7 text-slate-600">
-            営業先の業種に合わせて、予約項目と見た目を切り替えたデモを表示できます。
-          </p>
-          <Link
-            href="/demo/templates"
-            className="rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover"
-          >
-            予約UIテンプレートを見る
-          </Link>
-        </div>
+    <main className="min-h-screen bg-slate-50">
+      <section className="mx-auto w-full max-w-6xl px-5 py-8">
+        <p className="text-sm font-semibold text-commo-main">commo. reservation demo</p>
+        <h1 className="mt-3 text-3xl font-bold tracking-normal text-commo-ink">予約サイトデモ</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+          公式LINEのリッチメニューから直接開いて、実際の予約操作感を見せるためのデモです。
+        </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {demos.map(({ href, config, sample }) => (
-            <Link
-              key={config.industryType}
-              href={href}
-              className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-commo-main hover:shadow-soft"
-            >
-              <div className="p-5" style={{ backgroundColor: config.softAccent }}>
-                <p className="text-sm font-semibold" style={{ color: config.accent }}>
-                  {config.industryLabel}
-                </p>
-                <h2 className="mt-2 text-xl font-bold text-commo-ink">{config.title}</h2>
-                <div className="mt-4 flex h-24 items-center justify-center rounded-md border border-dashed border-white/80 bg-white/70 px-3 text-center text-xs font-semibold text-slate-500">
-                  {config.imagePlaceholder}
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {demoSites.map((site) => {
+            const config = getDemoSiteConfig(site);
+
+            return (
+              <Link
+                key={site.slug}
+                href={`/demo/${site.slug}`}
+                className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-commo-main hover:shadow-soft"
+              >
+                <div className="p-5" style={{ backgroundColor: config.softAccent }}>
+                  <p className="text-sm font-semibold" style={{ color: config.accent }}>
+                    {config.templateLabel}
+                  </p>
+                  <h2 className="mt-2 text-xl font-bold text-commo-ink">{site.title}</h2>
+                  <div className="mt-4 flex h-24 items-center justify-center rounded-md bg-white/75 px-3 text-center text-xs font-semibold text-slate-500">
+                    {config.imagePlaceholder}
+                  </div>
                 </div>
-              </div>
-              <div className="p-5">
-                <p className="text-sm leading-6 text-slate-600">{sample}</p>
-                <p className="mt-3 text-xs font-semibold text-slate-500">{config.steps.length}ステップの予約体験</p>
-                <span
-                  className="mt-5 inline-flex rounded-md px-4 py-2 text-sm font-semibold text-white"
-                  style={{ backgroundColor: config.accent }}
-                >
-                  デモを開く
-                </span>
-              </div>
-            </Link>
-          ))}
+                <div className="p-5">
+                  <p className="text-sm leading-6 text-slate-600">{site.description}</p>
+                  <p className="mt-3 text-xs font-semibold text-slate-500">{config.steps.length}ステップ</p>
+                  <span
+                    className="mt-5 inline-flex rounded-md px-4 py-2 text-sm font-semibold text-white"
+                    style={{ backgroundColor: config.accent }}
+                  >
+                    予約サイトを開く
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </main>
   );
+}
+
+function getFirstParam(searchParams: DemoPageSearchParams | undefined, keys: string[]) {
+  for (const key of keys) {
+    const value = getFirstValue(searchParams?.[key])?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getFirstParamFromUrlSearchParams(searchParams: URLSearchParams, keys: string[]) {
+  for (const key of keys) {
+    const value = searchParams.get(key)?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getFirstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getStateDestination(statePath: string | undefined) {
+  if (!statePath?.startsWith("/demo/")) {
+    return null;
+  }
+
+  const [pathname, query = ""] = statePath.split("?");
+  const destination = new URLSearchParams(query);
+
+  if (!destination.get("storeSlug")) {
+    destination.set("storeSlug", defaultStoreSlug);
+  }
+
+  destination.set("saveMode", "live");
+
+  return `${pathname}?${destination.toString()}`;
+}
+
+function getStateParams(statePath: string | undefined) {
+  if (!statePath) {
+    return new URLSearchParams();
+  }
+
+  const queryIndex = statePath.indexOf("?");
+
+  if (queryIndex === -1) {
+    return new URLSearchParams(statePath.startsWith("/") ? "" : statePath);
+  }
+
+  return new URLSearchParams(statePath.slice(queryIndex + 1));
 }
