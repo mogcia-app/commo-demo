@@ -1,7 +1,7 @@
 import { toDateInputValue } from "./date";
 import type { IndustryType, ReservationField, ReservationStep, ReservationSummaryConfig } from "./reservation-demos";
 
-export const TEMPLATE_TYPES = ["calendar", "slots", "cards", "hotel-search", "golf-start", "chat"] as const;
+export const TEMPLATE_TYPES = ["calendar", "slots", "hotel-search", "golf-start", "chat"] as const;
 
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
 
@@ -111,53 +111,6 @@ export const reservationTemplateConfigs: Record<TemplateType, ReservationTemplat
         },
       },
       { key: "menu", label: "メニュー", type: "select", required: true, options: ["カット", "整体60分", "診察予約"] },
-      { key: "name", label: "お名前", type: "text", required: true, placeholder: "山田 花子" },
-      { key: "phone", label: "電話番号", type: "tel", required: true, placeholder: "09012345678" },
-    ],
-  },
-  cards: {
-    templateType: "cards",
-    templateLabel: "カード選択型",
-    industryType: "hotel",
-    industryLabel: "ホテル・旅館・ゴルフプラン向け",
-    title: "カード選択型予約",
-    lead: "客室やプランを写真カードのように選ぶ、単価訴求しやすい予約UIです。",
-    accent: "#6B7FD7",
-    softAccent: "#EEF1FF",
-    imagePlaceholder: "客室・プランカード画像プレースホルダー",
-    defaults: {
-      plan: "デラックスルーム 朝食付き",
-      date: tomorrow,
-      time: "1泊",
-      guests: "2名",
-      name: "",
-      phone: "",
-    },
-    primary: { date: "date", time: "time", plan: "plan", name: "name", phone: "phone" },
-    steps: [
-      { title: "プラン選択", lead: "カードから魅力が伝わるプランを選びます。", fieldKeys: ["plan"] },
-      { title: "日時選択", lead: "利用日と時間・泊数を選びます。", fieldKeys: ["date", "time"] },
-      { title: "人数", lead: "利用人数を選択します。", fieldKeys: ["guests"] },
-      { title: "お客様情報", lead: "代表者情報を入力します。", fieldKeys: ["name", "phone"] },
-      { title: "確認", lead: "内容を確認して予約を確定します。", fieldKeys: [] },
-      { title: "完了", lead: "予約完了後、LINEに確認メッセージを送信します。", fieldKeys: [] },
-    ],
-    fields: [
-      {
-        key: "plan",
-        label: "プラン",
-        type: "select",
-        required: true,
-        options: ["ツイン 素泊まり", "デラックスルーム 朝食付き", "ゴルフパック 昼食付き"],
-        optionDescriptions: {
-          "ツイン 素泊まり": "価格重視で予約しやすいカード",
-          "デラックスルーム 朝食付き": "写真で魅力を伝えたい上位プラン",
-          "ゴルフパック 昼食付き": "ゴルフ場・宿泊連携にも使えるプラン",
-        },
-      },
-      { key: "date", label: "日付", type: "date", required: true, min: today },
-      { key: "time", label: "時間・泊数", type: "select", required: true, options: ["1泊", "2泊", "8:24スタート", "9:16スタート"] },
-      { key: "guests", label: "人数", type: "select", required: true, options: ["1名", "2名", "3名", "4名"] },
       { key: "name", label: "お名前", type: "text", required: true, placeholder: "山田 花子" },
       { key: "phone", label: "電話番号", type: "tel", required: true, placeholder: "09012345678" },
     ],

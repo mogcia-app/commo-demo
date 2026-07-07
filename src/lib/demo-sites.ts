@@ -15,12 +15,6 @@ export const demoSites = [
     description: "日付から始める定番の予約導線",
   },
   {
-    slug: "cards",
-    templateType: "cards",
-    title: "カード選択型予約サイト",
-    description: "プランの魅力をカードで見せるUI",
-  },
-  {
     slug: "hotel-search",
     templateType: "hotel-search",
     title: "ホテル検索型予約サイト",

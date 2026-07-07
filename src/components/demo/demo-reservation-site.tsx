@@ -13,15 +13,10 @@ import type { Menu } from "@/lib/storefront/types";
 import { CalendarReservationSite } from "./calendar-reservation-site";
 import { GolfStartReservationSite } from "./golf-start-reservation-site";
 import { HotelSearchReservationSite } from "./hotel-search-reservation-site";
-import { SalonCardsReservationSite } from "./salon-cards-reservation-site";
 
 export function DemoReservationSite({ site }: { site: DemoSite }) {
   if (site.slug === "calendar") {
     return <CalendarReservationSite site={site} />;
-  }
-
-  if (site.slug === "cards") {
-    return <SalonCardsReservationSite site={site} />;
   }
 
   if (site.slug === "hotel-search") {
