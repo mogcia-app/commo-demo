@@ -85,8 +85,7 @@ const plans: HotelPlan[] = [
 export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const storeSlug = searchParams.get("storeSlug")?.trim() || "";
-  const isLiveReservation = searchParams.get("saveMode") === "live" && Boolean(storeSlug);
+  const isLiveReservation = true;
   const campaignId = searchParams.get("campaignId")?.trim() || undefined;
   const couponId = searchParams.get("couponId")?.trim() || undefined;
   const initialStep = searchParams.get("step") === "complete" ? "complete" : "search";
@@ -131,7 +130,7 @@ export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
         return;
       }
 
-      const response = await fetch(`/api/stores/${storeSlug}/menus`);
+      const response = await fetch("/api/menus");
 
       if (!response.ok) {
         return;
@@ -149,7 +148,7 @@ export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
     return () => {
       ignore = true;
     };
-  }, [isLiveReservation, storeSlug]);
+  }, [isLiveReservation]);
 
   async function submitReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -171,10 +170,10 @@ export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
         const selectedMenu = menus[0];
 
         if (!selectedMenu) {
-          throw new Error("店舗メニューが見つかりません。storeSlugの設定を確認してください。");
+          throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");
         }
 
-        const response = await fetch(`/api/stores/${storeSlug}/reservations`, {
+        const response = await fetch("/api/reservations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -188,7 +187,7 @@ export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
             phone: customer.phone.trim(),
             email: customer.email.trim(),
             answers: {
-              demoSiteSlug: site.slug,
+              bookingTemplate: site.slug,
               hotelName: hotel.name,
               selectedPlan: selectedPlan.name,
               address: customer.address,

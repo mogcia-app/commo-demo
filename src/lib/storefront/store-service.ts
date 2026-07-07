@@ -15,13 +15,6 @@ export type StoreResolutionResult =
   | { ok: true; store: Store }
   | { ok: false; response: NextResponse<{ error: string }> };
 
-type StorefrontDocument = {
-  storeId?: string;
-  companyId?: string;
-  published?: boolean;
-  reservationEnabled?: boolean;
-};
-
 type StoreDocument = {
   name?: string;
   heroImageUrl?: string;
@@ -87,146 +80,23 @@ type AvailabilityDocument = {
   }>;
 };
 
-export async function getStoreBySlug(storeSlug: string): Promise<Store | null> {
-  const normalizedSlug = storeSlug.trim().toLowerCase();
-  const storefront = await getStorefrontBySlug(normalizedSlug).catch((cause) => {
-    console.warn("storefrontの取得に失敗したためモック店舗にフォールバックします", cause);
-    return null;
-  });
+const defaultStoreId = "default";
+const defaultStoreSlug = "booking";
 
-  if (storefront) {
-    return buildStoreFromStorefront(normalizedSlug, storefront);
-  }
-
-  return mockStores.find((store) => store.slug === normalizedSlug) ?? null;
-}
-
-export async function requireStoreBySlug(storeSlug: string): Promise<Store> {
-  const store = await getStoreBySlug(storeSlug);
-
-  if (!store) {
-    notFound();
-  }
-
-  return store;
-}
-
-export async function resolveActiveStoreForApi(storeSlug: string): Promise<StoreResolutionResult> {
-  let storefront: StorefrontDocument | null = null;
-  const normalizedSlug = storeSlug.trim().toLowerCase();
-
-  try {
-    storefront = await getStorefrontBySlug(normalizedSlug);
-  } catch (cause) {
-    console.error("storefrontの解決に失敗しました", cause);
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "店舗情報の取得に失敗しました。" }, { status: 500 }),
-    };
-  }
-
-  if (!storefront?.storeId) {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "店舗が見つかりません。" }, { status: 404 }),
-    };
-  }
-
-  const store = await buildStoreFromStorefront(normalizedSlug, storefront);
-
-  if (storefront.published === false || store.status !== "active") {
-    return {
-      ok: false,
-      response: NextResponse.json({ error: "この店舗は現在予約を受け付けていません。" }, { status: 403 }),
-    };
-  }
-
-  return { ok: true, store };
-}
-
-export async function getMenusForStore(storeId: string): Promise<Menu[]> {
-  try {
-    const snapshot = await getAdminDb().collection("stores").doc(storeId).collection("menus").get();
-    const menus = snapshot.docs
-      .map((doc) => buildMenuFromDocument(storeId, doc.id, doc.data() as MenuDocument))
-      .filter((menu) => menu.enabled !== false)
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-
-    return menus.length ? menus : getFallbackMenusForStore(storeId);
-  } catch (cause) {
-    console.warn("Firestoreのmenus取得に失敗したためモックにフォールバックします", cause);
-    return getFallbackMenusForStore(storeId);
-  }
-}
-
-export async function getCouponsForStore(storeId: string): Promise<Coupon[]> {
-  return mockCoupons[storeId] ?? [];
-}
-
-export async function getStaffForStore(storeId: string): Promise<Staff[]> {
-  try {
-    const snapshot = await getAdminDb().collection("stores").doc(storeId).collection("staff").get();
-    const staff = snapshot.docs
-      .map((doc) => buildStaffFromDocument(doc.id, doc.data() as StaffDocument))
-      .filter((member) => member.enabled !== false)
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-
-    return staff;
-  } catch (cause) {
-    console.warn("Firestoreのstaff取得に失敗したためモックにフォールバックします", cause);
-    return mockStaff[storeId] ?? [];
-  }
-}
-
-export async function getQuestionsForStore(storeId: string): Promise<Question[]> {
-  return mockQuestions[storeId] ?? [];
-}
-
-export async function getAvailableSlotsForStore(storeId: string): Promise<AvailableSlot[]> {
-  try {
-    const snapshot = await getAdminDb()
-      .collection("stores")
-      .doc(storeId)
-      .collection("availability")
-      .orderBy("__name__", "asc")
-      .limit(60)
-      .get();
-    const slots = snapshot.docs.flatMap((doc) => buildAvailableSlotsFromDocument(doc.id, doc.data() as AvailabilityDocument));
-
-    return slots;
-  } catch (cause) {
-    console.warn("Firestoreのavailability取得に失敗したためモックにフォールバックします", cause);
-    return mockAvailableSlots;
-  }
-}
-
-async function getStorefrontBySlug(storeSlug: string): Promise<StorefrontDocument | null> {
-  const snapshot = await getAdminDb().collection("storefronts").doc(storeSlug).get();
-
-  if (!snapshot.exists) {
-    return null;
-  }
-
-  return snapshot.data() as StorefrontDocument;
-}
-
-async function buildStoreFromStorefront(storeSlug: string, storefront: StorefrontDocument): Promise<Store> {
-  const mockStore =
-    mockStores.find((store) => store.id === storefront.storeId) ??
-    mockStores.find((store) => store.slug === storeSlug) ??
-    mockStores[0];
-  const storeDoc = storefront.storeId ? await getStoreDocument(storefront.storeId) : null;
-  const reservationEnabled = storeDoc?.reservationEnabled ?? storefront.reservationEnabled ?? mockStore.status === "active";
+export async function getStore(): Promise<Store> {
+  const mockStore = mockStores[0];
+  const storeDoc = await getStoreDocument();
+  const reservationEnabled = storeDoc?.reservationEnabled ?? mockStore.status === "active";
   const industry = toStoreIndustry(storeDoc?.industry) ?? mockStore.industry;
   const storefrontTemplate = toStorefrontLayoutKey(storeDoc?.storefrontTemplate ?? storeDoc?.template) ?? mockStore.layout.storefront;
   const reserveFlow = toReserveFlowKey(storeDoc?.reserveFlow) ?? mockStore.layout.reserve;
 
   return {
     ...mockStore,
-    id: storefront.storeId ?? mockStore.id,
+    id: defaultStoreId,
     name: storeDoc?.name?.trim() || mockStore.name,
-    slug: storeSlug,
-    status: storefront.published === false || !reservationEnabled ? "inactive" : "active",
+    slug: defaultStoreSlug,
+    status: reservationEnabled ? "active" : "inactive",
     industry,
     template: toStorefrontTemplateKey(storeDoc?.template) ?? mockStore.template,
     layout: {
@@ -269,9 +139,92 @@ async function buildStoreFromStorefront(storeSlug: string, storefront: Storefron
   };
 }
 
-async function getStoreDocument(storeId: string): Promise<StoreDocument | null> {
+export async function requireStore(): Promise<Store> {
+  const store = await getStore();
+
+  if (!store) {
+    notFound();
+  }
+
+  return store;
+}
+
+export async function resolveActiveStoreForApi(): Promise<StoreResolutionResult> {
+  let store: Store;
+
   try {
-    const snapshot = await getAdminDb().collection("stores").doc(storeId).get();
+    store = await getStore();
+  } catch (cause) {
+    console.error("店舗情報の取得に失敗しました", cause);
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "店舗情報の取得に失敗しました。" }, { status: 500 }),
+    };
+  }
+
+  if (store.status !== "active") {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "現在予約を受け付けていません。" }, { status: 403 }),
+    };
+  }
+
+  return { ok: true, store };
+}
+
+export async function getMenus(): Promise<Menu[]> {
+  try {
+    const snapshot = await getAdminDb().collection("menus").get();
+    const menus = snapshot.docs
+      .map((doc) => buildMenuFromDocument(doc.id, doc.data() as MenuDocument))
+      .filter((menu) => menu.enabled !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+    return menus.length ? menus : getMockMenus();
+  } catch (cause) {
+    console.warn("Firestoreのmenus取得に失敗したためモックにフォールバックします", cause);
+    return getMockMenus();
+  }
+}
+
+export async function getCoupons(): Promise<Coupon[]> {
+  return mockCoupons[mockStores[0].id] ?? [];
+}
+
+export async function getStaff(): Promise<Staff[]> {
+  try {
+    const snapshot = await getAdminDb().collection("staff").get();
+    const staff = snapshot.docs
+      .map((doc) => buildStaffFromDocument(doc.id, doc.data() as StaffDocument))
+      .filter((member) => member.enabled !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+    return staff.length ? staff : mockStaff[mockStores[0].id] ?? [];
+  } catch (cause) {
+    console.warn("Firestoreのstaff取得に失敗したためモックにフォールバックします", cause);
+    return mockStaff[mockStores[0].id] ?? [];
+  }
+}
+
+export async function getQuestions(): Promise<Question[]> {
+  return mockQuestions[mockStores[0].id] ?? [];
+}
+
+export async function getAvailableSlots(): Promise<AvailableSlot[]> {
+  try {
+    const snapshot = await getAdminDb().collection("availability").orderBy("__name__", "asc").limit(60).get();
+    const slots = snapshot.docs.flatMap((doc) => buildAvailableSlotsFromDocument(doc.id, doc.data() as AvailabilityDocument));
+
+    return slots.length ? slots : mockAvailableSlots;
+  } catch (cause) {
+    console.warn("Firestoreのavailability取得に失敗したためモックにフォールバックします", cause);
+    return mockAvailableSlots;
+  }
+}
+
+async function getStoreDocument(): Promise<StoreDocument | null> {
+  try {
+    const snapshot = await getAdminDb().collection("settings").doc("site").get();
 
     if (!snapshot.exists) {
       return null;
@@ -279,19 +232,19 @@ async function getStoreDocument(storeId: string): Promise<StoreDocument | null> 
 
     return snapshot.data() as StoreDocument;
   } catch (cause) {
-    console.warn("storesドキュメントの取得に失敗したためモック店舗情報を使用します", cause);
+    console.warn("settings/siteの取得に失敗したためモック店舗情報を使用します", cause);
     return null;
   }
 }
 
-function buildMenuFromDocument(storeId: string, id: string, data: MenuDocument): Menu {
+function buildMenuFromDocument(id: string, data: MenuDocument): Menu {
   const price = typeof data.price === "number" ? data.price : Number(data.price);
   const priceLabel = data.priceLabel?.trim() || (Number.isFinite(price) ? `${price.toLocaleString("ja-JP")}円` : "");
   const durationMinutes = Number(data.durationMinutes);
 
   return {
     id,
-    storeId,
+    storeId: defaultStoreId,
     name: data.name?.trim() || "名称未設定メニュー",
     description: data.description?.trim() || "",
     price: Number.isFinite(price) ? price : undefined,
@@ -304,26 +257,8 @@ function buildMenuFromDocument(storeId: string, id: string, data: MenuDocument):
   };
 }
 
-function getFallbackMenusForStore(storeId: string): Menu[] {
-  const mockStoreMenus = mockMenus.filter((menu) => menu.storeId === storeId);
-
-  if (mockStoreMenus.length) {
-    return mockStoreMenus;
-  }
-
-  return [
-    {
-      id: "default_reservation",
-      storeId,
-      name: "予約メニュー",
-      description: "店舗別メニューが未設定のため、デフォルトの予約メニューを使用します。",
-      priceLabel: "",
-      durationMinutes: 60,
-      category: "reservation",
-      enabled: true,
-      sortOrder: 0,
-    },
-  ];
+function getMockMenus(): Menu[] {
+  return mockMenus.filter((menu) => menu.storeId === mockStores[0].id).map((menu) => ({ ...menu, storeId: defaultStoreId }));
 }
 
 function buildStaffFromDocument(id: string, data: StaffDocument): Staff {

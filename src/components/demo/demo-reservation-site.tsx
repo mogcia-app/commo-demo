@@ -40,8 +40,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const storeSlug = searchParams.get("storeSlug")?.trim() || "";
-  const isLiveReservation = searchParams.get("saveMode") === "live" && Boolean(storeSlug);
+  const isLiveReservation = true;
   const campaignId = searchParams.get("campaignId")?.trim() || undefined;
   const couponId = searchParams.get("couponId")?.trim() || undefined;
   const loginRedirectPath = `${pathname}?${searchParams.toString()}`;
@@ -71,7 +70,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
         return;
       }
 
-      const response = await fetch(`/api/stores/${storeSlug}/menus`);
+      const response = await fetch("/api/menus");
 
       if (!response.ok) {
         return;
@@ -89,7 +88,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
     return () => {
       ignore = true;
     };
-  }, [isLiveReservation, storeSlug]);
+  }, [isLiveReservation]);
 
   const canProceed = useMemo(() => {
     const requiredFieldsFilled = currentStep.fieldKeys
@@ -134,7 +133,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
 
     try {
       if (!isLiveReservation) {
-        router.push(`/demo/complete?site=${site.slug}&saveMode=mock`);
+        router.push("/booking/complete");
         return;
       }
 
@@ -142,10 +141,10 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
       const { date, time } = getReservationDateTime(summary);
 
       if (!selectedMenu) {
-        throw new Error("店舗メニューが見つかりません。storeSlugの設定を確認してください。");
+        throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");
       }
 
-      const response = await fetch(`/api/stores/${storeSlug}/reservations`, {
+      const response = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -160,7 +159,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
           email: values.email,
           answers: {
             ...values,
-            demoSiteSlug: site.slug,
+            bookingTemplate: site.slug,
             demoTemplateType: config.templateType,
             demoTemplateLabel: config.templateLabel,
             selectedPlan: summary.plan,
@@ -176,8 +175,7 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
         throw new Error(body.error ?? "予約の作成に失敗しました。");
       }
 
-      const completeParams = new URLSearchParams({ site: site.slug, storeSlug });
-      router.push(`/demo/complete?${completeParams.toString()}`);
+      router.push("/booking/complete");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "予約の作成に失敗しました。");
     } finally {

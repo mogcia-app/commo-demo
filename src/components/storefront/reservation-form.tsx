@@ -72,7 +72,7 @@ export function ReservationForm({
     }
 
     pageViewLoggedRef.current = true;
-    void logAnalyticsEvent(store.slug, {
+    void logAnalyticsEvent({
       eventType: "reservation_page_view",
       source,
       lineUserId: profile.userId,
@@ -82,7 +82,7 @@ export function ReservationForm({
     });
 
     if (attribution?.campaignId || attribution?.couponId) {
-      void logAnalyticsEvent(store.slug, {
+      void logAnalyticsEvent({
         eventType: "line_link_click",
         source: "line",
         lineUserId: profile.userId,
@@ -90,7 +90,7 @@ export function ReservationForm({
         couponId: attribution.couponId,
       });
     }
-  }, [attribution?.campaignId, attribution?.couponId, liffState, profile, store.slug]);
+  }, [attribution?.campaignId, attribution?.couponId, liffState, profile]);
 
   function updateAnswer(questionId: string, value: string) {
     setAnswers((current) => ({ ...current, [questionId]: value }));
@@ -111,7 +111,7 @@ export function ReservationForm({
     setError("");
 
     try {
-      const response = await fetch(`/api/stores/${store.slug}/reservations`, {
+      const response = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -173,7 +173,7 @@ export function ReservationForm({
 
     if (!reservationStartLoggedRef.current) {
       reservationStartLoggedRef.current = true;
-      void logAnalyticsEvent(store.slug, {
+      void logAnalyticsEvent({
         eventType: "reservation_start",
         source,
         lineUserId: profile?.userId ?? "demo-line-user",
@@ -296,8 +296,8 @@ type AnalyticsEventPayload = {
   metadata?: Record<string, unknown>;
 };
 
-async function logAnalyticsEvent(storeSlug: string, payload: AnalyticsEventPayload) {
-  await fetch(`/api/stores/${storeSlug}/analytics-events`, {
+async function logAnalyticsEvent(payload: AnalyticsEventPayload) {
+  await fetch("/api/analytics-events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

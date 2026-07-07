@@ -49,10 +49,10 @@ export function ReservationsList() {
           <p className="mt-1 text-sm text-slate-500">demo-shop の予約を表示しています。</p>
         </div>
         <Link
-          href="/demo"
+          href="/booking"
           className="rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover"
         >
-          デモ予約
+          予約ページ
         </Link>
       </div>
 

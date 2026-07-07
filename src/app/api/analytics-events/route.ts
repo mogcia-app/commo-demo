@@ -24,9 +24,8 @@ type AnalyticsEventRequest = {
   metadata?: Record<string, unknown>;
 };
 
-export async function POST(request: Request, { params }: { params: Promise<{ storeSlug: string }> }) {
-  const { storeSlug } = await params;
-  const resolvedStore = await resolveActiveStoreForApi(storeSlug);
+export async function POST(request: Request) {
+  const resolvedStore = await resolveActiveStoreForApi();
 
   if (!resolvedStore.ok) {
     return resolvedStore.response;

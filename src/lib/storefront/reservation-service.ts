@@ -25,12 +25,11 @@ type CreateReservationInput = {
 
 export async function createReservation(input: CreateReservationInput): Promise<Reservation> {
   const db = getAdminDb();
-  const storeRef = db.collection("stores").doc(input.store.id);
   const customerId = `line_${toSafeDocId(input.lineUserId)}`;
-  const customerRef = storeRef.collection("customers").doc(customerId);
-  const lineUserRef = storeRef.collection("lineUsers").doc(toSafeDocId(input.lineUserId));
-  const reservationRef = storeRef.collection("reservations").doc();
-  const analyticsEventRef = storeRef.collection("analyticsEvents").doc();
+  const customerRef = db.collection("customers").doc(customerId);
+  const lineUserRef = db.collection("lineUsers").doc(toSafeDocId(input.lineUserId));
+  const reservationRef = db.collection("reservations").doc();
+  const analyticsEventRef = db.collection("analyticsEvents").doc();
   const startDate = parseStoreDateTime(input.date, input.time);
   const endDate = new Date(startDate.getTime() + input.menu.durationMinutes * 60 * 1000);
   const startAt = Timestamp.fromDate(startDate);
@@ -74,9 +73,16 @@ export async function createReservation(input: CreateReservationInput): Promise<
 
     transaction.set(reservationRef, {
       storeId: input.store.id,
-      storeSlug: input.store.slug,
       customerId,
       lineUserId: input.lineUserId,
+      lineDisplayName: input.lineDisplayName,
+      linePictureUrl: input.linePictureUrl ?? "",
+      menuName: input.menu.name,
+      date: input.date,
+      time: input.time,
+      name: input.displayName,
+      phone: input.phone,
+      email: input.email ?? "",
       menu: input.menu.name,
       menuSnapshot: {
         id: input.menu.id,
@@ -100,6 +106,8 @@ export async function createReservation(input: CreateReservationInput): Promise<
         email: input.email ?? "",
       },
       answers: input.answers,
+      fields: input.answers,
+      reservationDetails: input.answers,
       notes: input.notes ?? "",
       notifications: {
         completedSentAt: null,
@@ -112,7 +120,6 @@ export async function createReservation(input: CreateReservationInput): Promise<
 
     transaction.set(analyticsEventRef, {
       storeId: input.store.id,
-      storeSlug: input.store.slug,
       eventType: "reservation_complete",
       source,
       lineUserId: input.lineUserId,
@@ -169,11 +176,10 @@ export async function createAnalyticsEvent(input: {
   metadata?: Record<string, unknown>;
 }) {
   const db = getAdminDb();
-  const eventRef = db.collection("stores").doc(input.store.id).collection("analyticsEvents").doc();
+  const eventRef = db.collection("analyticsEvents").doc();
 
   await eventRef.set({
     storeId: input.store.id,
-    storeSlug: input.store.slug,
     eventType: input.eventType,
     source: input.source ?? "web",
     lineUserId: input.lineUserId ?? "",

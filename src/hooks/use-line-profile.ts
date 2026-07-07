@@ -14,6 +14,8 @@ const demoProfile: LineProfile = {
   pictureUrl: "",
 };
 
+const allowDemoProfile = process.env.NODE_ENV !== "production";
+
 export function useLineProfile(options?: { loginRedirectPath?: string }) {
   const [profile, setProfile] = useState<LineProfile | null>(null);
   const [liffState, setLiffState] = useState("LIFFを確認しています");
@@ -25,8 +27,12 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
 
       if (!liffId) {
-        setProfile(demoProfile);
-        setLiffState("デモプロフィールで表示中");
+        if (allowDemoProfile) {
+          setProfile(demoProfile);
+          setLiffState("デモプロフィールで表示中");
+        } else {
+          setLiffState("LIFF IDが未設定です");
+        }
         return;
       }
 
@@ -54,8 +60,12 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
       } catch (cause) {
         console.error(cause);
         if (!ignore) {
-          setProfile(demoProfile);
-          setLiffState("LIFF初期化に失敗したためデモプロフィールで表示中");
+          if (allowDemoProfile) {
+            setProfile(demoProfile);
+            setLiffState("LIFF初期化に失敗したためデモプロフィールで表示中");
+          } else {
+            setLiffState("LIFF初期化に失敗しました");
+          }
         }
       }
     }

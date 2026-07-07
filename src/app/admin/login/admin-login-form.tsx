@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { firebaseAuth } from "@/lib/firebase/client";
 
-export function AdminLoginForm() {
+export function AdminLoginForm({ showHomeLink = true }: { showHomeLink?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,9 +67,11 @@ export function AdminLoginForm() {
           {isLoading ? "ログイン中" : "ログイン"}
         </button>
 
-        <Link href="/" className="mt-4 block text-center text-sm font-semibold text-slate-500 hover:text-commo-hover">
-          トップへ戻る
-        </Link>
+        {showHomeLink ? (
+          <Link href="/" className="mt-4 block text-center text-sm font-semibold text-slate-500 hover:text-commo-hover">
+            トップへ戻る
+          </Link>
+        ) : null}
       </form>
     </main>
   );

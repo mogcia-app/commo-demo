@@ -3,7 +3,7 @@
 import { useLineProfile } from "@/hooks/use-line-profile";
 
 export function LiffWarmup() {
-  useLineProfile({ loginRedirectPath: "/demo" });
+  useLineProfile({ loginRedirectPath: "/booking" });
 
   return null;
 }

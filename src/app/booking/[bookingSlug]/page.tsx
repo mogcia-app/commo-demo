@@ -4,16 +4,16 @@ import { DemoReservationSite } from "@/components/demo/demo-reservation-site";
 import { demoSites, getDemoSiteBySlug } from "@/lib/demo-sites";
 
 export function generateStaticParams() {
-  return demoSites.map((site) => ({ demoSiteSlug: site.slug }));
+  return demoSites.map((site) => ({ bookingSlug: site.slug }));
 }
 
 export default async function DemoReservationPage({
   params,
 }: {
-  params: Promise<{ demoSiteSlug: string }>;
+  params: Promise<{ bookingSlug: string }>;
 }) {
-  const { demoSiteSlug } = await params;
-  const site = getDemoSiteBySlug(demoSiteSlug);
+  const { bookingSlug } = await params;
+  const site = getDemoSiteBySlug(bookingSlug);
 
   if (!site) {
     notFound();

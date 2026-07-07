@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
 
 type AnalyticsEventLoggerProps = {
-  storeSlug: string;
   eventType:
     | "line_link_click"
     | "reservation_page_view"
@@ -22,7 +21,6 @@ type AnalyticsEventLoggerProps = {
 };
 
 export function AnalyticsEventLogger({
-  storeSlug,
   eventType,
   source = "liff",
   campaignId,
@@ -39,7 +37,7 @@ export function AnalyticsEventLogger({
     }
 
     loggedRef.current = true;
-    void fetch(`/api/stores/${storeSlug}/analytics-events`, {
+    void fetch("/api/analytics-events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -52,7 +50,7 @@ export function AnalyticsEventLogger({
         metadata,
       }),
     });
-  }, [campaignId, couponId, eventType, metadata, profile, reservationId, source, storeSlug]);
+  }, [campaignId, couponId, eventType, metadata, profile, reservationId, source]);
 
   return null;
 }

@@ -24,6 +24,13 @@ type LineConnectionSettings = {
 
 export type LineNotificationStatus = "sent" | "skipped" | "failed";
 
+type LineNotificationSkipReason =
+  | "reservation_complete_disabled"
+  | "reservation_complete_message_empty"
+  | "line_user_id_missing"
+  | "line_connection_disconnected"
+  | "channel_access_token_missing";
+
 type ReservationCompleteInput = {
   store: Store;
   reservation: Reservation;
@@ -36,25 +43,51 @@ type ReservationCompleteInput = {
   paymentMethod?: string;
 };
 
+const defaultReservationCompleteTemplate: Required<ReservationCompleteTemplate> = {
+  enabled: true,
+  message: `{customerName} 様
+
+ご予約ありがとうございます。
+以下の内容で予約を受け付けました。
+
+店舗: {storeName}
+メニュー: {menuName}
+日時: {date} {time}
+
+ご来店をお待ちしております。`,
+};
+
 export async function sendReservationCompleteLineMessage(input: ReservationCompleteInput): Promise<LineNotificationStatus> {
   try {
-    const settings = await getLineMessageSettings(input.store.id);
-    const template = settings?.reservationComplete;
+    const template = await getReservationCompleteTemplate();
     const message = template?.message?.trim();
 
-    if (template?.enabled !== true || !message || !input.lineUserId.trim()) {
+    if (template?.enabled !== true) {
+      await markReservationCompleteMessageSkipped(input.reservation.id, "reservation_complete_disabled");
       return "skipped";
     }
 
-    const lineConnection = await getLineConnectionSettings(input.store.id);
+    if (!message) {
+      await markReservationCompleteMessageSkipped(input.reservation.id, "reservation_complete_message_empty");
+      return "skipped";
+    }
 
-    if (!lineConnection || !isLineConnected(lineConnection)) {
+    if (!input.lineUserId.trim()) {
+      await markReservationCompleteMessageSkipped(input.reservation.id, "line_user_id_missing");
+      return "skipped";
+    }
+
+    const lineConnection = await getLineConnectionSettings();
+
+    if (lineConnection && !isLineConnected(lineConnection)) {
+      await markReservationCompleteMessageSkipped(input.reservation.id, "line_connection_disconnected");
       return "skipped";
     }
 
     const channelAccessToken = await getChannelAccessToken(lineConnection);
 
     if (!channelAccessToken) {
+      await markReservationCompleteMessageSkipped(input.reservation.id, "channel_access_token_missing");
       return "skipped";
     }
 
@@ -66,12 +99,12 @@ export async function sendReservationCompleteLineMessage(input: ReservationCompl
       channelAccessToken,
     });
 
-    await markReservationCompleteMessageSent(input.store.id, input.reservation.id, input.lineUserId.trim(), text);
+    await markReservationCompleteMessageSent(input.reservation.id, input.lineUserId.trim(), text);
 
     return "sent";
   } catch (cause) {
     console.error("予約完了LINE通知に失敗しました", cause);
-    await markReservationCompleteMessageFailed(input.store.id, input.reservation.id, cause).catch((loggingCause) => {
+    await markReservationCompleteMessageFailed(input.reservation.id, cause).catch((loggingCause) => {
       console.error("予約完了LINE通知の失敗ログ保存に失敗しました", loggingCause);
     });
 
@@ -79,8 +112,18 @@ export async function sendReservationCompleteLineMessage(input: ReservationCompl
   }
 }
 
-async function getLineMessageSettings(storeId: string) {
-  const snapshot = await getAdminDb().collection("stores").doc(storeId).collection("settings").doc("lineMessages").get();
+async function getReservationCompleteTemplate() {
+  const settings = await getLineMessageSettings();
+  const firestoreTemplate = settings?.reservationComplete;
+
+  return {
+    ...defaultReservationCompleteTemplate,
+    ...firestoreTemplate,
+  };
+}
+
+async function getLineMessageSettings() {
+  const snapshot = await getAdminDb().collection("settings").doc("lineMessages").get();
 
   if (!snapshot.exists) {
     return null;
@@ -89,8 +132,8 @@ async function getLineMessageSettings(storeId: string) {
   return snapshot.data() as LineMessageSettings;
 }
 
-async function getLineConnectionSettings(storeId: string) {
-  const snapshot = await getAdminDb().collection("stores").doc(storeId).collection("settings").doc("line").get();
+async function getLineConnectionSettings() {
+  const snapshot = await getAdminDb().collection("settings").doc("line").get();
 
   if (!snapshot.exists) {
     return null;
@@ -111,14 +154,21 @@ function isLineConnected(settings: LineConnectionSettings) {
   return settings.connected === true || settings.isConnected === true || Boolean(getSecretResourceName(settings));
 }
 
-async function getChannelAccessToken(settings: LineConnectionSettings) {
-  const secretResourceName = getSecretResourceName(settings);
+async function getChannelAccessToken(settings: LineConnectionSettings | null) {
+  const secretResourceName = settings ? getSecretResourceName(settings) : null;
 
   if (!secretResourceName) {
-    return null;
+    return process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || null;
   }
 
-  return accessSecretVersion(secretResourceName);
+  return accessSecretVersion(secretResourceName).catch((cause) => {
+    if (process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim()) {
+      console.error("店舗別SecretからLINEアクセストークンを取得できないため環境変数を使用します", cause);
+      return process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || null;
+    }
+
+    throw cause;
+  });
 }
 
 function getSecretResourceName(settings: LineConnectionSettings) {
@@ -194,7 +244,6 @@ function buildTemplateValues(input: ReservationCompleteInput) {
     customerName: input.customerName,
     menuName: input.menu.name,
     storeName: input.store.name,
-    storeSlug: input.store.slug,
     startAt,
     endAt,
     date: input.reservation.date,
@@ -246,23 +295,25 @@ function formatEndDateTime(date: string, time: string, durationMinutes: number) 
   }).format(new Date(parsed.getTime() + durationMinutes * 60 * 1000));
 }
 
-async function markReservationCompleteMessageSent(storeId: string, reservationId: string, lineUserId: string, text: string) {
+async function markReservationCompleteMessageSent(reservationId: string, lineUserId: string, text: string) {
   const db = getAdminDb();
   const now = FieldValue.serverTimestamp();
 
   await Promise.all([
-    db.collection("stores").doc(storeId).collection("reservations").doc(reservationId).set(
+    db.collection("reservations").doc(reservationId).set(
       {
         notifications: {
           completedSentAt: now,
           completedMessage: text,
           completedError: "",
+          completedStatus: "sent",
+          completedSkippedReason: "",
         },
         updatedAt: now,
       },
       { merge: true },
     ),
-    db.collection("stores").doc(storeId).collection("lineUsers").doc(toSafeDocId(lineUserId)).set(
+    db.collection("lineUsers").doc(toSafeDocId(lineUserId)).set(
       {
         lastMessageAt: now,
         updatedAt: now,
@@ -272,12 +323,30 @@ async function markReservationCompleteMessageSent(storeId: string, reservationId
   ]);
 }
 
-async function markReservationCompleteMessageFailed(storeId: string, reservationId: string, cause: unknown) {
-  await getAdminDb().collection("stores").doc(storeId).collection("reservations").doc(reservationId).set(
+async function markReservationCompleteMessageFailed(reservationId: string, cause: unknown) {
+  await getAdminDb().collection("reservations").doc(reservationId).set(
     {
       notifications: {
         completedError: cause instanceof Error ? cause.message : "LINE通知に失敗しました。",
         completedFailedAt: FieldValue.serverTimestamp(),
+        completedStatus: "failed",
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+async function markReservationCompleteMessageSkipped(
+  reservationId: string,
+  reason: LineNotificationSkipReason,
+) {
+  await getAdminDb().collection("reservations").doc(reservationId).set(
+    {
+      notifications: {
+        completedStatus: "skipped",
+        completedSkippedAt: FieldValue.serverTimestamp(),
+        completedSkippedReason: reason,
       },
       updatedAt: FieldValue.serverTimestamp(),
     },

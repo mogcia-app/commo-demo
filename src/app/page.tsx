@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import { AdminLoginForm } from "./admin/login/admin-login-form";
 
 export default function HomePage() {
-  notFound();
+  return <AdminLoginForm showHomeLink={false} />;
 }

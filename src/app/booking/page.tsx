@@ -2,10 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { demoSites, getDemoSiteBySlug, getDemoSiteConfig } from "@/lib/demo-sites";
 
-const defaultStoreSlug = "company-a";
-const siteKeys = ["site", "demoSite", "demoSiteSlug", "template", "templateType", "pattern"];
-const storeSlugKeys = ["storeSlug", "slug", "store"];
-const passThroughKeys = ["storeSlug", "campaignId", "couponId"];
+const templateKeys = ["template", "templateType", "pattern"];
 
 type DemoPageSearchParams = Record<string, string | string[] | undefined>;
 
@@ -23,34 +20,20 @@ export default async function DemoPage({
   }
 
   const stateParams = getStateParams(statePath);
-  const siteSlug = getFirstParam(currentParams, siteKeys) ?? getFirstParamFromUrlSearchParams(stateParams, siteKeys);
+  const siteSlug = getFirstParam(currentParams, templateKeys) ?? getFirstParamFromUrlSearchParams(stateParams, templateKeys);
   const site = siteSlug ? getDemoSiteBySlug(siteSlug) : null;
 
   if (site) {
-    const destination = new URLSearchParams();
-    const storeSlug = getFirstParam(currentParams, storeSlugKeys) ?? getFirstParamFromUrlSearchParams(stateParams, storeSlugKeys) ?? defaultStoreSlug;
-
-    destination.set("storeSlug", storeSlug);
-    destination.set("saveMode", "live");
-
-    for (const key of passThroughKeys) {
-      const value = getFirstValue(currentParams?.[key]) ?? stateParams.get(key);
-
-      if (value) {
-        destination.set(key, value);
-      }
-    }
-
-    redirect(`/demo/${site.slug}?${destination.toString()}`);
+    redirect(`/booking/${site.slug}`);
   }
 
   return (
     <main className="min-h-screen bg-slate-50">
       <section className="mx-auto w-full max-w-6xl px-5 py-8">
-        <p className="text-sm font-semibold text-commo-main">commo. reservation demo</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-normal text-commo-ink">予約サイトデモ</h1>
+        <p className="text-sm font-semibold text-commo-main">commo. booking</p>
+        <h1 className="mt-3 text-3xl font-bold tracking-normal text-commo-ink">予約サイト</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          公式LINEのリッチメニューから直接開いて、実際の予約操作感を見せるためのデモです。
+          公式LINEのリッチメニューから直接開く予約ページです。
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -60,7 +43,7 @@ export default async function DemoPage({
             return (
               <Link
                 key={site.slug}
-                href={`/demo/${site.slug}`}
+                href={`/booking/${site.slug}`}
                 className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-commo-main hover:shadow-soft"
               >
                 <div className="p-5" style={{ backgroundColor: config.softAccent }}>
@@ -120,20 +103,11 @@ function getFirstValue(value: string | string[] | undefined) {
 }
 
 function getStateDestination(statePath: string | undefined) {
-  if (!statePath?.startsWith("/demo/")) {
+  if (!statePath?.startsWith("/booking/")) {
     return null;
   }
 
-  const [pathname, query = ""] = statePath.split("?");
-  const destination = new URLSearchParams(query);
-
-  if (!destination.get("storeSlug")) {
-    destination.set("storeSlug", defaultStoreSlug);
-  }
-
-  destination.set("saveMode", "live");
-
-  return `${pathname}?${destination.toString()}`;
+  return statePath.split("?")[0];
 }
 
 function getStateParams(statePath: string | undefined) {
