@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
-import type { DemoSite } from "@/lib/demo-sites";
+import type { BookingSite } from "@/lib/booking-sites";
 import { getReservationSummary, type ReservationField } from "@/lib/reservation-demos";
 import {
   getReservationTemplateConfig,
@@ -14,7 +14,7 @@ import { CalendarReservationSite } from "./calendar-reservation-site";
 import { GolfStartReservationSite } from "./golf-start-reservation-site";
 import { HotelSearchReservationSite } from "./hotel-search-reservation-site";
 
-export function DemoReservationSite({ site }: { site: DemoSite }) {
+export function BookingReservationSite({ site }: { site: BookingSite }) {
   if (site.slug === "calendar") {
     return <CalendarReservationSite site={site} />;
   }
@@ -27,10 +27,10 @@ export function DemoReservationSite({ site }: { site: DemoSite }) {
     return <GolfStartReservationSite site={site} />;
   }
 
-  return <GenericDemoReservationSite site={site} />;
+  return <GenericBookingReservationSite site={site} />;
 }
 
-function GenericDemoReservationSite({ site }: { site: DemoSite }) {
+function GenericBookingReservationSite({ site }: { site: BookingSite }) {
   const config = getReservationTemplateConfig(site.templateType);
   const router = useRouter();
   const pathname = usePathname();
@@ -155,8 +155,8 @@ function GenericDemoReservationSite({ site }: { site: DemoSite }) {
           answers: {
             ...values,
             bookingTemplate: site.slug,
-            demoTemplateType: config.templateType,
-            demoTemplateLabel: config.templateLabel,
+            bookingTemplateType: config.templateType,
+            bookingTemplateLabel: config.templateLabel,
             selectedPlan: summary.plan,
           },
           source: "liff",
@@ -259,7 +259,7 @@ function getReservationDateTime(summary: ReturnType<typeof getReservationSummary
   };
 }
 
-function TemplateHero({ config, site }: { config: ReservationTemplateConfig; site: DemoSite }) {
+function TemplateHero({ config, site }: { config: ReservationTemplateConfig; site: BookingSite }) {
   return (
     <div className="mb-4 overflow-hidden rounded-md bg-white shadow-soft">
       <div className="p-5" style={{ backgroundColor: config.softAccent }}>

@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
-import type { DemoSite } from "@/lib/demo-sites";
+import type { BookingSite } from "@/lib/booking-sites";
 import type { Menu } from "@/lib/storefront/types";
 
 type CalendarStep = "menu" | "datetime" | "confirm" | "customer" | "complete";
@@ -85,7 +85,7 @@ const limitedDateValues = new Set([16, 22, 27]);
 const weekLabels = ["日", "月", "火", "水", "木", "金", "土"];
 const brown = "#735942";
 
-export function CalendarReservationSite({ site }: { site: DemoSite }) {
+export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isLiveReservation = true;

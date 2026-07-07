@@ -1,19 +1,19 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { DemoReservationSite } from "@/components/demo/demo-reservation-site";
-import { demoSites, getDemoSiteBySlug } from "@/lib/demo-sites";
+import { BookingReservationSite } from "@/components/demo/demo-reservation-site";
+import { bookingSites, getBookingSiteBySlug } from "@/lib/booking-sites";
 
 export function generateStaticParams() {
-  return demoSites.map((site) => ({ bookingSlug: site.slug }));
+  return bookingSites.map((site) => ({ bookingSlug: site.slug }));
 }
 
-export default async function DemoReservationPage({
+export default async function BookingReservationPage({
   params,
 }: {
   params: Promise<{ bookingSlug: string }>;
 }) {
   const { bookingSlug } = await params;
-  const site = getDemoSiteBySlug(bookingSlug);
+  const site = getBookingSiteBySlug(bookingSlug);
 
   if (!site) {
     notFound();
@@ -21,7 +21,7 @@ export default async function DemoReservationPage({
 
   return (
     <Suspense fallback={<main className="min-h-screen bg-slate-50" />}>
-      <DemoReservationSite site={site} />
+      <BookingReservationSite site={site} />
     </Suspense>
   );
 }

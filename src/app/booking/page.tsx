@@ -1,15 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { demoSites, getDemoSiteBySlug, getDemoSiteConfig } from "@/lib/demo-sites";
+import { getBookingSiteBySlug } from "@/lib/booking-sites";
 
+const defaultBookingSlug = "hotel-search";
 const templateKeys = ["template", "templateType", "pattern"];
 
-type DemoPageSearchParams = Record<string, string | string[] | undefined>;
+type BookingPageSearchParams = Record<string, string | string[] | undefined>;
 
-export default async function DemoPage({
+export default async function BookingPage({
   searchParams,
 }: {
-  searchParams?: Promise<DemoPageSearchParams>;
+  searchParams?: Promise<BookingPageSearchParams>;
 }) {
   const currentParams = await searchParams;
   const statePath = getFirstValue(currentParams?.["liff.state"]);
@@ -20,61 +20,14 @@ export default async function DemoPage({
   }
 
   const stateParams = getStateParams(statePath);
-  const siteSlug = getFirstParam(currentParams, templateKeys) ?? getFirstParamFromUrlSearchParams(stateParams, templateKeys);
-  const site = siteSlug ? getDemoSiteBySlug(siteSlug) : null;
+  const requestedSlug =
+    getFirstParam(currentParams, templateKeys) ?? getFirstParamFromUrlSearchParams(stateParams, templateKeys) ?? defaultBookingSlug;
+  const site = getBookingSiteBySlug(requestedSlug) ?? getBookingSiteBySlug(defaultBookingSlug);
 
-  if (site) {
-    redirect(`/booking/${site.slug}`);
-  }
-
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <section className="mx-auto w-full max-w-6xl px-5 py-8">
-        <p className="text-sm font-semibold text-commo-main">commo. booking</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-normal text-commo-ink">予約サイト</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          公式LINEのリッチメニューから直接開く予約ページです。
-        </p>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {demoSites.map((site) => {
-            const config = getDemoSiteConfig(site);
-
-            return (
-              <Link
-                key={site.slug}
-                href={`/booking/${site.slug}`}
-                className="group overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-commo-main hover:shadow-soft"
-              >
-                <div className="p-5" style={{ backgroundColor: config.softAccent }}>
-                  <p className="text-sm font-semibold" style={{ color: config.accent }}>
-                    {config.templateLabel}
-                  </p>
-                  <h2 className="mt-2 text-xl font-bold text-commo-ink">{site.title}</h2>
-                  <div className="mt-4 flex h-24 items-center justify-center rounded-md bg-white/75 px-3 text-center text-xs font-semibold text-slate-500">
-                    {config.imagePlaceholder}
-                  </div>
-                </div>
-                <div className="p-5">
-                  <p className="text-sm leading-6 text-slate-600">{site.description}</p>
-                  <p className="mt-3 text-xs font-semibold text-slate-500">{config.steps.length}ステップ</p>
-                  <span
-                    className="mt-5 inline-flex rounded-md px-4 py-2 text-sm font-semibold text-white"
-                    style={{ backgroundColor: config.accent }}
-                  >
-                    予約サイトを開く
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-    </main>
-  );
+  redirect(`/booking/${site?.slug ?? defaultBookingSlug}`);
 }
 
-function getFirstParam(searchParams: DemoPageSearchParams | undefined, keys: string[]) {
+function getFirstParam(searchParams: BookingPageSearchParams | undefined, keys: string[]) {
   for (const key of keys) {
     const value = getFirstValue(searchParams?.[key])?.trim();
 

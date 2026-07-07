@@ -1,13 +1,13 @@
 import { reservationTemplateConfigs, type TemplateType } from "./reservation-templates";
 
-export type DemoSite = {
+export type BookingSite = {
   slug: string;
   templateType: TemplateType;
   title: string;
   description: string;
 };
 
-export const demoSites = [
+export const bookingSites = [
   {
     slug: "calendar",
     templateType: "calendar",
@@ -26,18 +26,18 @@ export const demoSites = [
     title: "ゴルフ場予約サイト",
     description: "スタート時間を軸にしたゴルフ予約",
   },
-] as const satisfies readonly DemoSite[];
+] as const satisfies readonly BookingSite[];
 
-const demoSiteBySlug: Map<string, DemoSite> = new Map(demoSites.map((site) => [site.slug, site]));
+const bookingSiteBySlug: Map<string, BookingSite> = new Map(bookingSites.map((site) => [site.slug, site]));
 
-export function getDemoSiteBySlug(slug: string) {
-  return demoSiteBySlug.get(slug) ?? null;
+export function getBookingSiteBySlug(slug: string) {
+  return bookingSiteBySlug.get(slug) ?? null;
 }
 
-export function getDemoSiteConfig(site: DemoSite) {
+export function getBookingSiteConfig(site: BookingSite) {
   return reservationTemplateConfigs[site.templateType];
 }
 
-export function getDefaultDemoSite() {
-  return demoSites[0];
+export function getDefaultBookingSite() {
+  return bookingSites[0];
 }

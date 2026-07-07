@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
-import type { DemoSite } from "@/lib/demo-sites";
+import type { BookingSite } from "@/lib/booking-sites";
 import {
   golfCourses,
   golfPlayerCounts,
@@ -32,7 +32,7 @@ type CustomerForm = {
   agreed: boolean;
 };
 
-export function GolfStartReservationSite({ site }: { site: DemoSite }) {
+export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isLiveReservation = true;

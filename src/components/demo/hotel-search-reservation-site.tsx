@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
-import type { DemoSite } from "@/lib/demo-sites";
+import type { BookingSite } from "@/lib/booking-sites";
 import type { Menu } from "@/lib/storefront/types";
 
 type HotelStep = "search" | "detail" | "confirm" | "customer" | "complete";
@@ -82,7 +82,7 @@ const plans: HotelPlan[] = [
   },
 ];
 
-export function HotelSearchReservationSite({ site }: { site: DemoSite }) {
+export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isLiveReservation = true;
@@ -305,7 +305,7 @@ function HotelIntro() {
         </p>
         <h2 className="mt-2 text-lg font-bold">{hotel.name}</h2>
         <p className="mt-2 text-xs leading-5" style={{ color: theme.muted }}>
-          宿泊日と人数を選び、そのままプラン予約まで進めるデモです。
+          宿泊日と人数を選び、そのままプラン予約まで進めます。
         </p>
         <p className="mt-2 text-xs font-semibold" style={{ color: theme.muted }}>
           {hotel.area} / {hotel.address}
