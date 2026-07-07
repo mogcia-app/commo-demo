@@ -26,7 +26,7 @@ type StaffOption = {
   fee: string;
 };
 
-type DemoMenu = {
+type BookingMenu = {
   id: string;
   name: string;
   price: string;
@@ -41,7 +41,7 @@ const storeProfile = {
   description: "髪と頭皮をやさしく整える、落ち着いた雰囲気のプライベートサロンです。",
 };
 
-const demoMenus: DemoMenu[] = [
+const bookingMenus: BookingMenu[] = [
   {
     id: "cut",
     name: "カット",
@@ -91,7 +91,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const loginRedirectPath = `${pathname}?${searchParams.toString()}`;
   const { profile } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<CalendarStep>("menu");
-  const [selectedMenuId, setSelectedMenuId] = useState(demoMenus[0].id);
+  const [selectedMenuId, setSelectedMenuId] = useState(bookingMenus[0].id);
   const [selectedDate, setSelectedDate] = useState(getTodayValue());
   const [selectedTime, setSelectedTime] = useState("");
   const [selectedStaffId, setSelectedStaffId] = useState(staffOptions[0].id);
@@ -108,7 +108,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedDemoMenu = demoMenus.find((menu) => menu.id === selectedMenuId) ?? demoMenus[0];
+  const selectedBookingMenu = bookingMenus.find((menu) => menu.id === selectedMenuId) ?? bookingMenus[0];
   const selectedDateLabel = useMemo(() => formatJapaneseDate(selectedDate), [selectedDate]);
   const selectedStaff = staffOptions.find((staff) => staff.id === selectedStaffId) ?? staffOptions[0];
   const canSubmit = Boolean(customer.name.trim() && customer.kana.trim() && customer.phone.trim() && customer.email.trim() && customer.agreed);
@@ -221,7 +221,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
             email: customer.email.trim(),
             answers: {
               bookingTemplate: site.slug,
-              selectedMenu: selectedDemoMenu.name,
+              selectedMenu: selectedBookingMenu.name,
               selectedStaff: selectedStaff.name,
               selectedDate,
               selectedTime,
@@ -264,7 +264,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
 
         {step === "datetime" ? (
           <DateTimeStep
-            selectedMenu={selectedDemoMenu}
+            selectedMenu={selectedBookingMenu}
             selectedDate={selectedDate}
             selectedTime={selectedTime}
             selectedStaffId={selectedStaffId}
@@ -281,7 +281,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
             selectedDateLabel={selectedDateLabel}
             selectedTime={selectedTime}
             selectedStaff={selectedStaff}
-            selectedMenu={selectedDemoMenu}
+            selectedMenu={selectedBookingMenu}
             onNext={() => setStep("customer")}
             onBack={() => setStep("datetime")}
             onMenuBack={() => setStep("menu")}
@@ -304,7 +304,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
             selectedDateLabel={selectedDateLabel}
             selectedTime={selectedTime}
             selectedStaff={selectedStaff}
-            selectedMenu={selectedDemoMenu}
+            selectedMenu={selectedBookingMenu}
             onRestart={() => setStep("menu")}
           />
         ) : null}
@@ -360,7 +360,7 @@ function MenuStep({
       <Card>
         <SectionTitle>ご希望のメニューを選択してください</SectionTitle>
         <div className="mt-4 space-y-3">
-          {demoMenus.map((menu) => {
+          {bookingMenus.map((menu) => {
             const selected = selectedMenuId === menu.id;
 
             return (
@@ -421,7 +421,7 @@ function DateTimeStep({
   onTimeChange,
   onNext,
 }: {
-  selectedMenu: DemoMenu;
+  selectedMenu: BookingMenu;
   selectedDate: string;
   selectedTime: string;
   selectedStaffId: string;
@@ -477,7 +477,7 @@ function ConfirmStep({
   onBack,
   onMenuBack,
 }: {
-  selectedMenu: DemoMenu;
+  selectedMenu: BookingMenu;
   selectedDateLabel: string;
   selectedTime: string;
   selectedStaff: StaffOption;
@@ -588,7 +588,7 @@ function CompleteStep({
   selectedStaff,
   onRestart,
 }: {
-  selectedMenu: DemoMenu;
+  selectedMenu: BookingMenu;
   selectedDateLabel: string;
   selectedTime: string;
   selectedStaff: StaffOption;
@@ -619,8 +619,8 @@ function CompleteStep({
         </div>
       </Card>
       <SecondaryButton onClick={onRestart}>カレンダーに追加</SecondaryButton>
-      <PrimaryButton onClick={() => router.push("/booking")}>予約一覧へ</PrimaryButton>
-      <SecondaryButton onClick={() => router.push("/booking/calendar")}>トップページへ</SecondaryButton>
+      <PrimaryButton onClick={() => router.push("/calendar")}>予約ページへ</PrimaryButton>
+      <SecondaryButton onClick={() => router.push("/calendar")}>トップページへ</SecondaryButton>
     </section>
   );
 }
@@ -751,7 +751,7 @@ function TimeSlotPicker({
   );
 }
 
-function MenuCard({ menu }: { menu: DemoMenu }) {
+function MenuCard({ menu }: { menu: BookingMenu }) {
   return (
     <Card>
       <SectionTitle>ご希望のメニュー</SectionTitle>
@@ -823,7 +823,7 @@ function StaffSelect({ selectedStaffId, onChange }: { selectedStaffId: string; o
   );
 }
 
-function MenuSummary({ menu }: { menu: DemoMenu }) {
+function MenuSummary({ menu }: { menu: BookingMenu }) {
   return (
     <div className="mt-4 flex gap-3">
       <MenuImagePlaceholder className="h-24 w-24 rounded-lg" />

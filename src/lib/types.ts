@@ -1,6 +1,4 @@
 import type { ReservationStatus } from "./constants";
-import type { IndustryType } from "./reservation-demos";
-import type { TemplateType } from "./reservation-templates";
 
 export type Customer = {
   id: string;
@@ -18,9 +16,9 @@ export type Reservation = {
   id: string;
   shopId: string;
   customerId: string;
-  industryType: IndustryType;
+  industryType?: string;
   industryLabel?: string;
-  templateType?: TemplateType | null;
+  templateType?: string | null;
   templateLabel?: string | null;
   lineUserId: string;
   lineDisplayName?: string;

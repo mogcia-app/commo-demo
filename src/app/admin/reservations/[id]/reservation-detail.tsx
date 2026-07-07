@@ -6,8 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { fetchAdminReservations, updateReservationStatus } from "@/lib/admin-api";
 import { STATUS_LABELS, type ReservationStatus } from "@/lib/constants";
-import { reservationDemoConfigs, type IndustryType } from "@/lib/reservation-demos";
-import { reservationTemplateConfigs } from "@/lib/reservation-templates";
 import type { Reservation } from "@/lib/types";
 
 const statuses = Object.keys(STATUS_LABELS) as ReservationStatus[];
@@ -19,8 +17,6 @@ export function ReservationDetail({ id }: { id: string }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const reservation = useMemo(() => reservations.find((item) => item.id === id), [id, reservations]);
-  const config = reservationDemoConfigs[reservation?.industryType ?? "salon"];
-  const templateConfig = reservation?.templateType ? reservationTemplateConfigs[reservation.templateType] : null;
 
   useEffect(() => {
     let ignore = false;
@@ -91,23 +87,12 @@ export function ReservationDetail({ id }: { id: string }) {
               <div>
                 <p className="text-sm font-semibold text-slate-500">予約詳細</p>
                 <h1 className="mt-1 text-2xl font-bold text-commo-ink">{reservation.name}</h1>
-                <span
-                  className="mt-3 inline-flex rounded-md px-3 py-1 text-sm font-semibold"
-                  style={{ backgroundColor: config.softAccent, color: config.accent }}
-                >
-                  {reservation.industryLabel ?? config.industryLabel}
+                <span className="mt-3 inline-flex rounded-md bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                  {getReservationTypeLabel(reservation)}
                 </span>
-                {templateConfig ? (
-                  <span
-                    className="ml-2 mt-3 inline-flex rounded-md px-3 py-1 text-sm font-semibold"
-                    style={{ backgroundColor: templateConfig.softAccent, color: templateConfig.accent }}
-                  >
-                    {reservation.templateLabel ?? templateConfig.templateLabel}
-                  </span>
-                ) : null}
               </div>
               <span className="rounded-md bg-commo-soft px-3 py-1 text-sm font-semibold text-commo-hover">
-                {STATUS_LABELS[reservation.status]}
+                {STATUS_LABELS[reservation.status] ?? reservation.status}
               </span>
             </div>
 
@@ -179,16 +164,26 @@ export function ReservationDetail({ id }: { id: string }) {
 }
 
 function getFieldRows(reservation: Reservation) {
-  const industryType: IndustryType = reservation.industryType ?? "salon";
-  const config = reservationDemoConfigs[industryType];
   const fields = reservation.reservationDetails ?? reservation.fields ?? {};
 
-  return config.fields
-    .map((field) => ({
-      label: field.label,
-      value: fields[field.key]?.trim() ?? "",
+  return Object.entries(fields)
+    .map(([key, value]) => ({
+      label: fieldLabels[key] ?? key,
+      value: String(value ?? "").trim(),
     }))
     .filter((row) => row.value);
+}
+
+function getReservationTypeLabel(reservation: Reservation) {
+  return (
+    reservation.templateLabel ||
+    reservation.industryLabel ||
+    reservation.reservationDetails?.bookingTemplate ||
+    reservation.fields?.bookingTemplate ||
+    reservation.templateType ||
+    reservation.industryType ||
+    "予約"
+  );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
@@ -199,3 +194,23 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+const fieldLabels: Record<string, string> = {
+  address: "住所",
+  bookingTemplate: "予約ページ",
+  checkInTime: "チェックイン時間",
+  companions: "同伴者",
+  courseName: "ゴルフ場",
+  guests: "人数",
+  hotelName: "ホテル",
+  kana: "フリガナ",
+  notes: "備考",
+  paymentMethod: "支払い方法",
+  playDate: "プレー日",
+  selectedDate: "日付",
+  selectedMenu: "メニュー",
+  selectedPlan: "プラン",
+  selectedStaff: "スタッフ",
+  selectedStartTime: "スタート時間",
+  selectedTime: "時間",
+};

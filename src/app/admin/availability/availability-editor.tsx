@@ -115,7 +115,7 @@ export function AvailabilityEditor() {
           <p className="mt-1 text-sm text-slate-500">予約ページに表示する日付ごとの受付枠を管理します。</p>
         </div>
         <Link
-          href="/booking"
+          href="/hotel-search"
           className="rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover"
         >
           予約ページ

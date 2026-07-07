@@ -9,15 +9,13 @@ import type { BookingSite } from "@/lib/booking-sites";
 import {
   golfCourses,
   golfPlayerCounts,
-  golfPlayDates,
   golfPlans,
-  golfTimeSlots,
   golfTheme as theme,
   type GolfPlayDate,
   type GolfCourse,
   type GolfPlan,
-} from "@/lib/demo/golf-start-config";
-import type { Menu } from "@/lib/storefront/types";
+} from "@/lib/booking/golf-start-config";
+import type { AvailableSlot, Menu } from "@/lib/storefront/types";
 
 type GolfStep = "plan" | "schedule" | "confirm" | "customer" | "complete";
 
@@ -43,8 +41,8 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const [step, setStep] = useState<GolfStep>("plan");
   const [selectedPlanId, setSelectedPlanId] = useState(golfPlans[0].id);
   const [selectedPlayerCount, setSelectedPlayerCount] = useState(4);
-  const [selectedPlayDateId, setSelectedPlayDateId] = useState(golfPlayDates[0].id);
-  const [selectedStartTime, setSelectedStartTime] = useState("8:30");
+  const [selectedPlayDateId, setSelectedPlayDateId] = useState("");
+  const [selectedStartTime, setSelectedStartTime] = useState("");
   const [customer, setCustomer] = useState<CustomerForm>({
     name: "",
     kana: "",
@@ -56,14 +54,15 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
     agreed: false,
   });
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedCourse = golfCourses[0];
   const selectedPlan = golfPlans.find((plan) => plan.id === selectedPlanId) ?? golfPlans[0];
-  const selectedPlayDate = golfPlayDates.find((date) => date.id === selectedPlayDateId) ?? golfPlayDates[0];
+  const selectedPlayDate = buildGolfPlayDate(selectedPlayDateId);
   const totalPrice = selectedPlan.pricePerPerson * selectedPlayerCount;
-  const reservationNumber = useMemo(() => `GOL${selectedPlayDate.apiDate.replaceAll("-", "")}-0001`, [selectedPlayDate.apiDate]);
+  const reservationNumber = useMemo(() => `GOL${(selectedPlayDate.apiDate || getTodayValue()).replaceAll("-", "")}-0001`, [selectedPlayDate.apiDate]);
   const canSubmit = Boolean(
     customer.name.trim() &&
       customer.kana.trim() &&
@@ -103,11 +102,51 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
     };
   }, [isLiveReservation]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadAvailableSlots() {
+      const response = await fetch("/api/available-slots");
+
+      if (!response.ok) {
+        return;
+      }
+
+      const body = (await response.json()) as { availableSlots?: AvailableSlot[] };
+      const slots = body.availableSlots ?? [];
+
+      if (ignore) {
+        return;
+      }
+
+      setAvailableSlots(slots);
+
+      const selectedSlotStillAvailable = slots.some((slot) => slot.date === selectedPlayDateId && slot.time === selectedStartTime);
+      const fallbackSlot = slots[0];
+
+      if (!selectedSlotStillAvailable && fallbackSlot) {
+        setSelectedPlayDateId(fallbackSlot.date);
+        setSelectedStartTime(fallbackSlot.time);
+      }
+    }
+
+    void loadAvailableSlots();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPlayDateId, selectedStartTime]);
+
   async function submitReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canSubmit) {
       setError("必須項目を入力し、利用規約に同意してください。");
+      return;
+    }
+
+    if (!selectedPlayDateId || !selectedStartTime) {
+      setError("プレー日とスタート時間を選択してください。");
       return;
     }
 
@@ -190,7 +229,12 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
             <ScheduleStep
               selectedPlayDateId={selectedPlayDateId}
               selectedStartTime={selectedStartTime}
-              onSelectPlayDate={setSelectedPlayDateId}
+              availableSlots={availableSlots}
+              onSelectPlayDate={(date) => {
+                const nextSlot = availableSlots.find((slot) => slot.date === date);
+                setSelectedPlayDateId(date);
+                setSelectedStartTime(nextSlot?.time ?? "");
+              }}
               onSelectStartTime={setSelectedStartTime}
               onBack={() => setStep("plan")}
               onNext={() => setStep("confirm")}
@@ -327,6 +371,7 @@ function PlanStep({
 function ScheduleStep({
   selectedPlayDateId,
   selectedStartTime,
+  availableSlots,
   onSelectPlayDate,
   onSelectStartTime,
   onBack,
@@ -334,11 +379,16 @@ function ScheduleStep({
 }: {
   selectedPlayDateId: string;
   selectedStartTime: string;
+  availableSlots: AvailableSlot[];
   onSelectPlayDate: (dateId: string) => void;
   onSelectStartTime: (time: string) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
+  const playDates = buildGolfPlayDates(availableSlots);
+  const slotsForSelectedDate = availableSlots.filter((slot) => slot.date === selectedPlayDateId);
+  const selectedMonthLabel = selectedPlayDateId ? formatMonthLabel(selectedPlayDateId) : "空き枠未設定";
+
   return (
     <div>
       <PhoneHeader title="日時検索" onBack={onBack} />
@@ -347,11 +397,16 @@ function ScheduleStep({
           <div className="flex items-center justify-between gap-3 px-1">
             <h3 className="text-sm font-bold">プレー日</h3>
             <span className="rounded-full bg-[#F4FAF2] px-3 py-1 text-xs font-bold" style={{ color: theme.green }}>
-              2026.07
+              {selectedMonthLabel}
             </span>
           </div>
           <div className="mt-3 grid grid-cols-4 rounded-2xl bg-[#F4FAF2] p-1">
-            {golfPlayDates.map((date) => {
+            {!playDates.length ? (
+              <p className="col-span-4 px-3 py-4 text-center text-xs font-semibold" style={{ color: theme.muted }}>
+                選択できる日付がありません。
+              </p>
+            ) : null}
+            {playDates.map((date) => {
               const selected = selectedPlayDateId === date.id;
               const [day, weekday] = date.shortLabel.split("\n");
               const dayNumber = day.replace("7/", "");
@@ -387,9 +442,15 @@ function ScheduleStep({
             </div>
           </div>
           <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
-            {golfTimeSlots.map((slot) => {
+            {!slotsForSelectedDate.length ? (
+              <p className="rounded-xl bg-[#F4FAF2] px-3 py-4 text-center text-xs font-semibold" style={{ color: theme.muted }}>
+                選択できるスタート時間がありません。
+              </p>
+            ) : null}
+            {slotsForSelectedDate.map((slot) => {
               const selected = selectedStartTime === slot.time;
               const isMorning = Number(slot.time.split(":")[0]) < 10;
+              const available = slot.available !== false && slot.remaining > 0;
               return (
                 <div key={slot.time} className="grid grid-cols-[74px_1fr] items-stretch gap-2">
                   <div className="flex flex-col items-center justify-center rounded-xl bg-[#F4FAF2] px-2 py-2">
@@ -398,20 +459,20 @@ function ScheduleStep({
                   </div>
                   <button
                     type="button"
-                    disabled={!slot.available}
+                    disabled={!available}
                     onClick={() => onSelectStartTime(slot.time)}
                     className="flex min-h-14 items-center justify-between rounded-xl border px-4 text-left transition disabled:bg-[#F7F8F6]"
-                    style={{ borderColor: selected ? theme.green : theme.border, backgroundColor: selected ? theme.green : theme.surface, color: selected ? "#FFFFFF" : slot.available ? theme.ink : "#A8B0A6" }}
-                    aria-label={`${slot.time} ${slot.available ? "予約できます" : "予約できません"}`}
+                    style={{ borderColor: selected ? theme.green : theme.border, backgroundColor: selected ? theme.green : theme.surface, color: selected ? "#FFFFFF" : available ? theme.ink : "#A8B0A6" }}
+                    aria-label={`${slot.time} ${available ? "予約できます" : "予約できません"}`}
                   >
                     <span>
-                      <span className="block text-sm font-bold">{slot.available ? "予約できます" : "予約不可"}</span>
-                      <span className="mt-0.5 block text-[11px]" style={{ color: selected ? "#E8F5E4" : slot.available ? theme.muted : "#A8B0A6" }}>
-                        {slot.available ? "この枠を選択" : "別の時間をお選びください"}
+                      <span className="block text-sm font-bold">{available ? `残り${slot.remaining}枠` : "予約不可"}</span>
+                      <span className="mt-0.5 block text-[11px]" style={{ color: selected ? "#E8F5E4" : available ? theme.muted : "#A8B0A6" }}>
+                        {available ? "この枠を選択" : "別の時間をお選びください"}
                       </span>
                     </span>
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg font-bold" style={{ color: slot.available ? theme.green : "#A8B0A6" }}>
-                      {slot.available ? "○" : "×"}
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg font-bold" style={{ color: available ? theme.green : "#A8B0A6" }}>
+                      {available ? "○" : "×"}
                     </span>
                   </button>
                 </div>
@@ -631,6 +692,50 @@ function DetailBlock({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm">{value}</p>
     </div>
   );
+}
+
+function buildGolfPlayDates(slots: AvailableSlot[]): GolfPlayDate[] {
+  const dates = Array.from(new Set(slots.map((slot) => slot.date))).sort();
+
+  return dates.map(buildGolfPlayDate);
+}
+
+function buildGolfPlayDate(date: string): GolfPlayDate {
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+
+  if (!date || Number.isNaN(parsed.getTime())) {
+    return {
+      id: "",
+      label: "日付未選択",
+      shortLabel: "-\n-",
+      apiDate: "",
+    };
+  }
+
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+
+  return {
+    id: date,
+    label: `${parsed.getFullYear()}年${parsed.getMonth() + 1}月${parsed.getDate()}日（${weekdays[parsed.getDay()]}）`,
+    shortLabel: `${parsed.getMonth() + 1}/${parsed.getDate()}\n${weekdays[parsed.getDay()]}`,
+    apiDate: date,
+  };
+}
+
+function formatMonthLabel(date: string) {
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return "空き枠";
+  }
+
+  return `${parsed.getFullYear()}.${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getTodayValue() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function TextField({ label, required, value, placeholder, onChange }: { label: string; required?: boolean; value: string; placeholder: string; onChange: (value: string) => void }) {

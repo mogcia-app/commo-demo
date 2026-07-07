@@ -51,10 +51,10 @@ function normalizeReservation(id: string, data: Record<string, unknown>): Record
   return {
     id,
     ...data,
-    industryType: typeof data["industryType"] === "string" ? data["industryType"] : "salon",
-    industryLabel: typeof data["industryLabel"] === "string" ? data["industryLabel"] : "予約",
-    templateType: typeof data["templateType"] === "string" ? data["templateType"] : null,
-    templateLabel: typeof data["templateLabel"] === "string" ? data["templateLabel"] : null,
+    industryType: getString(data["industryType"]),
+    industryLabel: getString(data["industryLabel"]),
+    templateType: getString(data["templateType"]) || null,
+    templateLabel: getString(data["templateLabel"]) || null,
     menuName:
       getString(data["menuName"]) ||
       getString(data["menu"]) ||

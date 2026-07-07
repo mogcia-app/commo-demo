@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
 import type { BookingSite } from "@/lib/booking-sites";
-import type { Menu } from "@/lib/storefront/types";
+import type { AvailableSlot, Menu } from "@/lib/storefront/types";
 
 type HotelStep = "search" | "detail" | "confirm" | "customer" | "complete";
 
@@ -17,7 +17,6 @@ type CustomerForm = {
   email: string;
   address: string;
   guests: string;
-  checkInTime: string;
   notes: string;
   agreed: boolean;
 };
@@ -44,8 +43,6 @@ const theme = {
 
 const searchDefaults = {
   area: "東京, 日本",
-  checkIn: "2026-07-20",
-  checkOut: "2026-07-21",
   guests: "大人2名 / 1部屋",
 };
 
@@ -93,6 +90,8 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const { profile } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<HotelStep>(initialStep);
   const [selectedPlanId, setSelectedPlanId] = useState(plans[0].id);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
   const [customer, setCustomer] = useState<CustomerForm>({
     name: "",
     kana: "",
@@ -100,16 +99,16 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
     email: "",
     address: "",
     guests: "大人2名 / 1部屋",
-    checkInTime: "15:00",
     notes: "",
     agreed: false,
   });
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? plans[0];
-  const reservationNumber = useMemo(() => `R-${searchDefaults.checkIn.replaceAll("-", "")}-123456`, []);
+  const reservationNumber = useMemo(() => `R-${(selectedDate || getTodayValue()).replaceAll("-", "")}-123456`, [selectedDate]);
   const canSubmit = Boolean(
     customer.name.trim() &&
       customer.kana.trim() &&
@@ -117,7 +116,6 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
       customer.email.trim() &&
       customer.address.trim() &&
       customer.guests.trim() &&
-      customer.checkInTime.trim() &&
       customer.agreed,
   );
 
@@ -150,11 +148,51 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
     };
   }, [isLiveReservation]);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadAvailableSlots() {
+      const response = await fetch("/api/available-slots");
+
+      if (!response.ok) {
+        return;
+      }
+
+      const body = (await response.json()) as { availableSlots?: AvailableSlot[] };
+      const slots = body.availableSlots ?? [];
+
+      if (ignore) {
+        return;
+      }
+
+      setAvailableSlots(slots);
+
+      const selectedSlotStillAvailable = slots.some((slot) => slot.date === selectedDate && slot.time === selectedTime);
+      const fallbackSlot = slots[0];
+
+      if (!selectedSlotStillAvailable && fallbackSlot) {
+        setSelectedDate(fallbackSlot.date);
+        setSelectedTime(fallbackSlot.time);
+      }
+    }
+
+    void loadAvailableSlots();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedDate, selectedTime]);
+
   async function submitReservation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canSubmit) {
       setError("必須項目を入力し、利用規約に同意してください。");
+      return;
+    }
+
+    if (!selectedDate || !selectedTime) {
+      setError("宿泊日とチェックイン時間を選択してください。");
       return;
     }
 
@@ -178,8 +216,8 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             menuId: selectedMenu.id,
-            date: searchDefaults.checkIn,
-            time: customer.checkInTime,
+            date: selectedDate,
+            time: selectedTime,
             lineUserId: profile.userId,
             lineDisplayName: profile.displayName,
             linePictureUrl: profile.pictureUrl,
@@ -192,7 +230,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
               selectedPlan: selectedPlan.name,
               address: customer.address,
               guests: customer.guests,
-              checkInTime: customer.checkInTime,
+              checkInTime: selectedTime,
               notes: customer.notes,
             },
             source: "liff",
@@ -221,7 +259,20 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
         <div>
           {step === "search" ? (
           <PhoneFrame>
-            <SearchStep onNext={() => setStep("detail")} />
+            <SearchStep
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              availableSlots={availableSlots}
+              onSelectDate={(date) => {
+                const nextSlot = availableSlots.find((slot) => slot.date === date);
+                setSelectedDate(date);
+                setSelectedTime(nextSlot?.time ?? "");
+              }}
+              onSelectTime={(time) => {
+                setSelectedTime(time);
+              }}
+              onNext={() => setStep("detail")}
+            />
           </PhoneFrame>
           ) : null}
           {step === "detail" ? (
@@ -231,7 +282,13 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
           ) : null}
           {step === "confirm" ? (
           <PhoneFrame>
-            <ConfirmStep selectedPlan={selectedPlan} onBack={() => setStep("detail")} onNext={() => setStep("customer")} />
+            <ConfirmStep
+              selectedPlan={selectedPlan}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onBack={() => setStep("detail")}
+              onNext={() => setStep("customer")}
+            />
           </PhoneFrame>
           ) : null}
           {step === "customer" ? (
@@ -249,7 +306,14 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
           ) : null}
           {step === "complete" ? (
           <PhoneFrame>
-            <CompleteStep reservationNumber={reservationNumber} selectedPlan={selectedPlan} customer={customer} onRestart={() => setStep("search")} />
+            <CompleteStep
+              reservationNumber={reservationNumber}
+              selectedPlan={selectedPlan}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              customer={customer}
+              onRestart={() => setStep("search")}
+            />
           </PhoneFrame>
           ) : null}
         </div>
@@ -280,15 +344,34 @@ function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) 
   );
 }
 
-function SearchStep({ onNext }: { onNext: () => void }) {
+function SearchStep({
+  selectedDate,
+  selectedTime,
+  availableSlots,
+  onSelectDate,
+  onSelectTime,
+  onNext,
+}: {
+  selectedDate: string;
+  selectedTime: string;
+  availableSlots: AvailableSlot[];
+  onSelectDate: (date: string) => void;
+  onSelectTime: (time: string) => void;
+  onNext: () => void;
+}) {
+  const availableDates = buildAvailableDates(availableSlots);
+  const slotsForSelectedDate = availableSlots.filter((slot) => slot.date === selectedDate);
+
   return (
     <div>
       <div className="space-y-3 p-4">
         <HotelIntro />
-        <SearchField label="チェックイン" value="2026年7月20日（月）" icon="□" />
-        <SearchField label="チェックアウト" value="2026年7月21日（火）" icon="□" />
+        <SelectField label="チェックイン" value={selectedDate} options={availableDates} icon="□" onChange={onSelectDate} />
+        <SelectField label="チェックイン時間" value={selectedTime} options={slotsForSelectedDate.map((slot) => ({ value: slot.time, label: formatSlotLabel(slot) }))} icon="○" onChange={onSelectTime} />
+        <SearchField label="チェックアウト" value={selectedDate ? formatJapaneseDate(addDays(selectedDate, 1)) : "日付を選択してください"} icon="□" />
         <SearchField label="宿泊数" value="1泊" icon="◑" />
         <SearchField label="人数・部屋数" value={searchDefaults.guests} icon="♙" />
+        {!availableSlots.length ? <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">現在選択できる空き枠がありません。</p> : null}
         <PrimaryButton onClick={onNext}>検索する</PrimaryButton>
       </div>
     </div>
@@ -376,7 +459,19 @@ function DetailStep({
   );
 }
 
-function ConfirmStep({ selectedPlan, onBack, onNext }: { selectedPlan: HotelPlan; onBack: () => void; onNext: () => void }) {
+function ConfirmStep({
+  selectedPlan,
+  selectedDate,
+  selectedTime,
+  onBack,
+  onNext,
+}: {
+  selectedPlan: HotelPlan;
+  selectedDate: string;
+  selectedTime: string;
+  onBack: () => void;
+  onNext: () => void;
+}) {
   const serviceFee = Math.round(selectedPlan.price * 0.1);
   const tax = Math.round(selectedPlan.price * 0.1);
 
@@ -397,8 +492,8 @@ function ConfirmStep({ selectedPlan, onBack, onNext }: { selectedPlan: HotelPlan
             </div>
           </div>
           <div className="mt-4 space-y-2 text-sm">
-            <DetailRow label="チェックイン" value="2026年7月20日（月）15:00〜" />
-            <DetailRow label="チェックアウト" value="2026年7月21日（火）〜11:00" />
+            <DetailRow label="チェックイン" value={`${formatJapaneseDate(selectedDate)} ${selectedTime}〜`} />
+            <DetailRow label="チェックアウト" value={`${formatJapaneseDate(addDays(selectedDate, 1))} 〜11:00`} />
             <DetailRow label="宿泊者" value="大人2名 / 1部屋" />
           </div>
         </Card>
@@ -453,7 +548,6 @@ function CustomerStep({
         <TextField label="メールアドレス" required value={customer.email} placeholder="例）example@email.com" onChange={(value) => update("email", value)} />
         <TextField label="住所" required value={customer.address} placeholder="例）東京都新宿区..." onChange={(value) => update("address", value)} />
         <TextField label="宿泊者人数" required value={customer.guests} placeholder="例）大人2名 / 1部屋" onChange={(value) => update("guests", value)} />
-        <TextField label="チェックイン予定時間" required value={customer.checkInTime} placeholder="例）15:00" onChange={(value) => update("checkInTime", value)} />
         <label className="block">
           <span className="text-sm font-bold">ご要望・連絡事項</span>
           <textarea value={customer.notes} onChange={(event) => update("notes", event.target.value)} placeholder="ご要望があればご記入ください" className="mt-2 min-h-20 w-full rounded-lg border px-3 py-3 text-sm outline-none" style={{ borderColor: theme.border }} />
@@ -471,7 +565,21 @@ function CustomerStep({
   );
 }
 
-function CompleteStep({ reservationNumber, selectedPlan, customer, onRestart }: { reservationNumber: string; selectedPlan: HotelPlan; customer: CustomerForm; onRestart: () => void }) {
+function CompleteStep({
+  reservationNumber,
+  selectedPlan,
+  selectedDate,
+  selectedTime,
+  customer,
+  onRestart,
+}: {
+  reservationNumber: string;
+  selectedPlan: HotelPlan;
+  selectedDate: string;
+  selectedTime: string;
+  customer: CustomerForm;
+  onRestart: () => void;
+}) {
   return (
     <div>
       <PhoneHeader title="予約完了" onBack={onRestart} />
@@ -485,8 +593,8 @@ function CompleteStep({ reservationNumber, selectedPlan, customer, onRestart }: 
           <DetailBlock label="予約番号" value={reservationNumber} />
           <DetailBlock label="ホテル" value={hotel.name} />
           <DetailBlock label="プラン" value={selectedPlan.name} />
-          <DetailBlock label="チェックイン" value="2026年7月20日（月）15:00〜" />
-          <DetailBlock label="チェックアウト" value="2026年7月21日（火）〜11:00" />
+          <DetailBlock label="チェックイン" value={`${formatJapaneseDate(selectedDate)} ${selectedTime}〜`} />
+          <DetailBlock label="チェックアウト" value={`${formatJapaneseDate(addDays(selectedDate, 1))} 〜11:00`} />
           <DetailBlock label="代表者名" value={customer.name || "山田 太郎"} />
           <DetailBlock label="電話番号" value={customer.phone || "090-1234-5678"} />
           <DetailBlock label="メールアドレス" value={customer.email || "example@email.com"} />
@@ -512,6 +620,41 @@ function SearchField({ label, value, icon }: { label: string; value: string; ico
   );
 }
 
+function SelectField({
+  label,
+  value,
+  options,
+  icon,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  icon: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block">
+      <p className="mb-1 text-xs font-bold">{label}</p>
+      <div className="flex h-12 items-center gap-3 rounded-xl border px-3 text-sm" style={{ borderColor: theme.border }}>
+        <span style={{ color: theme.pink }}>{icon}</span>
+        <select
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
+        >
+          {!options.length ? <option value="">空き枠なし</option> : null}
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </label>
+  );
+}
+
 function TextField({ label, required, value, placeholder, onChange }: { label: string; required?: boolean; value: string; placeholder: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
@@ -522,6 +665,56 @@ function TextField({ label, required, value, placeholder, onChange }: { label: s
       <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-2 h-11 w-full rounded-lg border bg-white px-3 text-sm outline-none transition" style={{ borderColor: theme.border }} />
     </label>
   );
+}
+
+function buildAvailableDates(slots: AvailableSlot[]) {
+  const dates = Array.from(new Set(slots.map((slot) => slot.date))).sort();
+
+  return dates.map((date) => ({
+    value: date,
+    label: formatJapaneseDate(date),
+  }));
+}
+
+function formatSlotLabel(slot: AvailableSlot) {
+  return slot.remaining <= 2 ? `${slot.time} 残り${slot.remaining}` : `${slot.time} 空きあり`;
+}
+
+function formatJapaneseDate(date: string) {
+  if (!date) {
+    return "日付未選択";
+  }
+
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return `${parsed.getFullYear()}年${parsed.getMonth() + 1}月${parsed.getDate()}日（${weekdays[parsed.getDay()]}）`;
+}
+
+function addDays(date: string, days: number) {
+  if (!date) {
+    return "";
+  }
+
+  const parsed = new Date(`${date}T00:00:00+09:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  parsed.setDate(parsed.getDate() + days);
+
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+}
+
+function getTodayValue() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function HeroImage({ label, tall = false, compact = false }: { label: string; tall?: boolean; compact?: boolean }) {
