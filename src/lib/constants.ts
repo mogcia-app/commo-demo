@@ -1,5 +1,3 @@
-export const SHOP_ID = "demo-shop";
-
 export const STATUS_LABELS = {
   reserved: "予約済み",
   confirmed: "確定",
