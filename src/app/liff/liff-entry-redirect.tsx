@@ -1,41 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CalendarReservationSite } from "@/components/booking/calendar-reservation-site";
+import { GolfStartReservationSite } from "@/components/booking/golf-start-reservation-site";
+import { HotelSearchReservationSite } from "@/components/booking/hotel-search-reservation-site";
+import { bookingSites, type BookingSiteSlug } from "@/lib/booking-sites";
 
 const defaultBookingPath = "/hotel-search";
-const passThroughKeys = ["campaignId", "couponId"];
 const bookingPaths = ["/calendar", "/hotel-search", "/golf-start"];
 const liffPathPrefix = "/liff";
 
 export function LiffEntryRedirect() {
-  const [message] = useState("LINEから予約ページへ移動しています");
+  const [siteSlug, setSiteSlug] = useState<BookingSiteSlug>("hotel-search");
 
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
     const statePath = currentUrl.searchParams.get("liff.state");
-    const stateParams = getStateParams(statePath);
     const directPath = getDirectLiffPath(currentUrl.pathname, currentUrl.search);
+    const stateParams = getStateParams(statePath);
     const requestedPath = currentUrl.searchParams.get("path") ?? stateParams.get("path");
-    const stateDestination = buildBookingDestination(statePath, currentUrl, stateParams);
-    const directDestination = buildBookingDestination(directPath, currentUrl, stateParams);
-    const requestedDestination = buildBookingDestination(requestedPath, currentUrl, stateParams);
+    const bookingPath = getBookingPath(statePath) ?? getBookingPath(directPath) ?? getBookingPath(requestedPath) ?? defaultBookingPath;
 
-    if (stateDestination || directDestination || requestedDestination) {
-      window.location.replace(stateDestination ?? directDestination ?? requestedDestination ?? createLiffBookingUrl(defaultBookingPath, currentUrl, stateParams));
-      return;
-    }
-
-    window.location.replace(createLiffBookingUrl(defaultBookingPath, currentUrl, stateParams));
+    setSiteSlug(getSiteSlug(bookingPath));
   }, []);
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center">
-      <p className="text-sm font-semibold text-slate-600">{message}</p>
-    </main>
-  );
+  return renderBookingSite(siteSlug);
 }
 
-function buildBookingDestination(path: string | null, currentUrl: URL, stateParams: URLSearchParams) {
+function getBookingPath(path: string | null) {
   if (!path?.startsWith("/")) {
     return null;
   }
@@ -44,25 +36,13 @@ function buildBookingDestination(path: string | null, currentUrl: URL, statePara
     return null;
   }
 
-  if (!bookingPaths.some((bookingPath) => path === bookingPath || path.startsWith(`${bookingPath}?`))) {
+  const pathname = path.split("?")[0];
+
+  if (!bookingPaths.includes(pathname)) {
     return null;
   }
 
-  return createLiffBookingUrl(path, currentUrl, stateParams);
-}
-
-function createLiffBookingUrl(path: string, currentUrl: URL, stateParams: URLSearchParams) {
-  const destination = new URL(`${liffPathPrefix}${path}`, window.location.origin);
-
-  for (const key of passThroughKeys) {
-    const value = currentUrl.searchParams.get(key) ?? stateParams.get(key);
-
-    if (value) {
-      destination.searchParams.set(key, value);
-    }
-  }
-
-  return destination.toString();
+  return pathname;
 }
 
 function getDirectLiffPath(pathname: string, search: string) {
@@ -85,4 +65,26 @@ function getStateParams(statePath: string | null) {
   }
 
   return new URLSearchParams(statePath.slice(queryIndex + 1));
+}
+
+function getSiteSlug(path: string): BookingSiteSlug {
+  const slug = path.slice(1) as BookingSiteSlug;
+
+  if (slug === "calendar" || slug === "hotel-search" || slug === "golf-start") {
+    return slug;
+  }
+
+  return "hotel-search";
+}
+
+function renderBookingSite(siteSlug: BookingSiteSlug) {
+  if (siteSlug === "calendar") {
+    return <CalendarReservationSite site={bookingSites.calendar} />;
+  }
+
+  if (siteSlug === "golf-start") {
+    return <GolfStartReservationSite site={bookingSites["golf-start"]} />;
+  }
+
+  return <HotelSearchReservationSite site={bookingSites["hotel-search"]} />;
 }

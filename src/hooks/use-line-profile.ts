@@ -41,9 +41,17 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
         await liff.init({ liffId });
 
         if (!liff.isLoggedIn()) {
+          const redirectUri = createLoginRedirectUri(options?.loginRedirectPath);
+
+          if (hasTriedLoginRedirect(redirectUri)) {
+            setLiffState("LINE認証を確認できませんでした。LINEアプリ内から開き直してください。");
+            return;
+          }
+
+          markLoginRedirectTried(redirectUri);
           setLiffState("LINE認証へ移動しています");
           liff.login({
-            redirectUri: createLoginRedirectUri(options?.loginRedirectPath),
+            redirectUri,
           });
           return;
         }
@@ -55,6 +63,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
             displayName: lineProfile.displayName,
             pictureUrl: lineProfile.pictureUrl ?? "",
           });
+          clearLoginRedirectTries();
           setLiffState(liff.isInClient() ? "LINEプロフィールを取得しました" : "LINEログインでプロフィールを取得しました");
         }
       } catch (cause) {
@@ -94,4 +103,26 @@ function createLoginRedirectUri(loginRedirectPath?: string) {
   } catch {
     return new URL(fallbackPath, window.location.origin).toString();
   }
+}
+
+function hasTriedLoginRedirect(redirectUri: string) {
+  return window.sessionStorage.getItem(getLoginRedirectKey(redirectUri)) === "true";
+}
+
+function markLoginRedirectTried(redirectUri: string) {
+  window.sessionStorage.setItem(getLoginRedirectKey(redirectUri), "true");
+}
+
+function clearLoginRedirectTries() {
+  for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.sessionStorage.key(index);
+
+    if (key?.startsWith("commo:liff-login:")) {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+}
+
+function getLoginRedirectKey(redirectUri: string) {
+  return `commo:liff-login:${redirectUri}`;
 }
