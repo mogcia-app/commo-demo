@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 const defaultBookingPath = "/hotel-search";
 const passThroughKeys = ["campaignId", "couponId"];
 const bookingPaths = ["/calendar", "/hotel-search", "/golf-start"];
+const liffPathPrefix = "/liff";
 
 export function LiffEntryRedirect() {
   const [message] = useState("LINEから予約ページへ移動しています");
@@ -20,11 +21,11 @@ export function LiffEntryRedirect() {
     const requestedDestination = buildBookingDestination(requestedPath, currentUrl, stateParams);
 
     if (stateDestination || directDestination || requestedDestination) {
-      window.location.replace(stateDestination ?? directDestination ?? requestedDestination ?? defaultBookingPath);
+      window.location.replace(stateDestination ?? directDestination ?? requestedDestination ?? createLiffBookingUrl(defaultBookingPath, currentUrl, stateParams));
       return;
     }
 
-    window.location.replace(createBookingUrl(defaultBookingPath, currentUrl, stateParams));
+    window.location.replace(createLiffBookingUrl(defaultBookingPath, currentUrl, stateParams));
   }, []);
 
   return (
@@ -47,11 +48,11 @@ function buildBookingDestination(path: string | null, currentUrl: URL, statePara
     return null;
   }
 
-  return createBookingUrl(path, currentUrl, stateParams);
+  return createLiffBookingUrl(path, currentUrl, stateParams);
 }
 
-function createBookingUrl(path: string, currentUrl: URL, stateParams: URLSearchParams) {
-  const destination = new URL(path, window.location.origin);
+function createLiffBookingUrl(path: string, currentUrl: URL, stateParams: URLSearchParams) {
+  const destination = new URL(`${liffPathPrefix}${path}`, window.location.origin);
 
   for (const key of passThroughKeys) {
     const value = currentUrl.searchParams.get(key) ?? stateParams.get(key);
@@ -65,13 +66,11 @@ function createBookingUrl(path: string, currentUrl: URL, stateParams: URLSearchP
 }
 
 function getDirectLiffPath(pathname: string, search: string) {
-  const prefix = "/liff";
-
-  if (pathname === prefix || !pathname.startsWith(`${prefix}/`)) {
+  if (pathname === liffPathPrefix || !pathname.startsWith(`${liffPathPrefix}/`)) {
     return null;
   }
 
-  return `${pathname.slice(prefix.length)}${search}`;
+  return `${pathname.slice(liffPathPrefix.length)}${search}`;
 }
 
 function getStateParams(statePath: string | null) {

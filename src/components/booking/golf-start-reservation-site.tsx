@@ -36,7 +36,8 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const isLiveReservation = true;
   const campaignId = searchParams.get("campaignId")?.trim() || undefined;
   const couponId = searchParams.get("couponId")?.trim() || undefined;
-  const loginRedirectPath = `${pathname}?${searchParams.toString()}`;
+  const search = searchParams.toString();
+  const loginRedirectPath = search ? `${pathname}?${search}` : pathname;
   const { profile } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<GolfStep>("plan");
   const [selectedPlanId, setSelectedPlanId] = useState(golfPlans[0].id);

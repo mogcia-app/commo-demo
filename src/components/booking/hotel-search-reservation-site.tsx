@@ -86,7 +86,8 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const campaignId = searchParams.get("campaignId")?.trim() || undefined;
   const couponId = searchParams.get("couponId")?.trim() || undefined;
   const initialStep = searchParams.get("step") === "complete" ? "complete" : "search";
-  const loginRedirectPath = `${pathname}?${searchParams.toString()}`;
+  const search = searchParams.toString();
+  const loginRedirectPath = search ? `${pathname}?${search}` : pathname;
   const { profile } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<HotelStep>(initialStep);
   const [selectedPlanId, setSelectedPlanId] = useState(plans[0].id);
