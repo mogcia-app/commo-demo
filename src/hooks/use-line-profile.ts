@@ -15,6 +15,7 @@ const demoProfile: LineProfile = {
 };
 
 const allowDemoProfile = process.env.NODE_ENV !== "production";
+const liffEntryPath = "/liff";
 
 export function useLineProfile(options?: { loginRedirectPath?: string }) {
   const [profile, setProfile] = useState<LineProfile | null>(null);
@@ -43,7 +44,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
         if (!liff.isLoggedIn()) {
           setLiffState("LINE認証へ移動しています");
           liff.login({
-            redirectUri: `${window.location.origin}${options?.loginRedirectPath ?? window.location.pathname}`,
+            redirectUri: createLiffLoginRedirectUri(options?.loginRedirectPath),
           });
           return;
         }
@@ -78,4 +79,29 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
   }, [options?.loginRedirectPath]);
 
   return { profile, liffState };
+}
+
+function createLiffLoginRedirectUri(loginRedirectPath?: string) {
+  const returnPath = normalizeReturnPath(loginRedirectPath);
+  const redirectUrl = new URL(liffEntryPath, window.location.origin);
+
+  redirectUrl.searchParams.set("path", returnPath);
+
+  return redirectUrl.toString();
+}
+
+function normalizeReturnPath(loginRedirectPath?: string) {
+  const fallbackPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const candidate = loginRedirectPath || fallbackPath;
+
+  if (candidate.startsWith("/")) {
+    return candidate;
+  }
+
+  try {
+    const url = new URL(candidate);
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallbackPath;
+  }
 }

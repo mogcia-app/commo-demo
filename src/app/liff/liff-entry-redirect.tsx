@@ -14,25 +14,17 @@ export function LiffEntryRedirect() {
     const statePath = currentUrl.searchParams.get("liff.state");
     const stateParams = getStateParams(statePath);
     const directPath = getDirectLiffPath(currentUrl.pathname, currentUrl.search);
-    const stateDestination = getBookingDestination(statePath);
-    const directDestination = getBookingDestination(directPath);
+    const requestedPath = currentUrl.searchParams.get("path") ?? stateParams.get("path");
+    const stateDestination = buildBookingDestination(statePath, currentUrl, stateParams);
+    const directDestination = buildBookingDestination(directPath, currentUrl, stateParams);
+    const requestedDestination = buildBookingDestination(requestedPath, currentUrl, stateParams);
 
-    if (stateDestination || directDestination) {
-      window.location.replace(stateDestination ?? directDestination ?? defaultBookingPath);
+    if (stateDestination || directDestination || requestedDestination) {
+      window.location.replace(stateDestination ?? directDestination ?? requestedDestination ?? defaultBookingPath);
       return;
     }
 
-    const destination = new URL(defaultBookingPath, window.location.origin);
-
-    for (const key of passThroughKeys) {
-      const value = currentUrl.searchParams.get(key) ?? stateParams.get(key);
-
-      if (value) {
-        destination.searchParams.set(key, value);
-      }
-    }
-
-    window.location.replace(destination.toString());
+    window.location.replace(createBookingUrl(defaultBookingPath, currentUrl, stateParams));
   }, []);
 
   return (
@@ -42,7 +34,7 @@ export function LiffEntryRedirect() {
   );
 }
 
-function getBookingDestination(path: string | null) {
+function buildBookingDestination(path: string | null, currentUrl: URL, stateParams: URLSearchParams) {
   if (!path?.startsWith("/")) {
     return null;
   }
@@ -55,7 +47,21 @@ function getBookingDestination(path: string | null) {
     return null;
   }
 
-  return new URL(path, window.location.origin).toString();
+  return createBookingUrl(path, currentUrl, stateParams);
+}
+
+function createBookingUrl(path: string, currentUrl: URL, stateParams: URLSearchParams) {
+  const destination = new URL(path, window.location.origin);
+
+  for (const key of passThroughKeys) {
+    const value = currentUrl.searchParams.get(key) ?? stateParams.get(key);
+
+    if (value) {
+      destination.searchParams.set(key, value);
+    }
+  }
+
+  return destination.toString();
 }
 
 function getDirectLiffPath(pathname: string, search: string) {
