@@ -57,6 +57,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
             >
               空き枠
             </Link>
+            <Link
+              href="/admin/menus"
+              className={`text-sm font-semibold ${pathname === "/admin/menus" ? "text-commo-hover" : "text-slate-500"}`}
+            >
+              メニュー
+            </Link>
             <button
               type="button"
               onClick={async () => {

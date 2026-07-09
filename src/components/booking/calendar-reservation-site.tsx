@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
 import type { BookingSite } from "@/lib/booking-sites";
 import type { AvailableSlot, Menu } from "@/lib/storefront/types";
+import { LineAuthStatus } from "./line-auth-status";
 
 type CalendarStep = "menu" | "datetime" | "confirm" | "customer" | "complete";
 
@@ -72,6 +73,20 @@ const bookingMenus: BookingMenu[] = [
   },
 ];
 
+function buildBookingMenus(menus: Menu[]): BookingMenu[] {
+  if (!menus.length) {
+    return bookingMenus;
+  }
+
+  return menus.map((menu) => ({
+    id: menu.id,
+    name: menu.name,
+    price: menu.priceLabel,
+    duration: `約${menu.durationMinutes}分`,
+    description: menu.description,
+  }));
+}
+
 const staffOptions: StaffOption[] = [
   { id: "none", name: "指名なし", role: "おまかせ", fee: "¥0" },
   { id: "mika", name: "Mika", role: "Stylist", fee: "¥550" },
@@ -90,7 +105,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const couponId = searchParams.get("couponId")?.trim() || undefined;
   const search = searchParams.toString();
   const loginRedirectPath = search ? `${pathname}?${search}` : pathname;
-  const { profile } = useLineProfile({ loginRedirectPath });
+  const { profile, liffState, authVerified } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<CalendarStep>("menu");
   const [selectedMenuId, setSelectedMenuId] = useState(bookingMenus[0].id);
   const [selectedDate, setSelectedDate] = useState(getTodayValue());
@@ -109,7 +124,8 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedBookingMenu = bookingMenus.find((menu) => menu.id === selectedMenuId) ?? bookingMenus[0];
+  const displayBookingMenus = useMemo(() => buildBookingMenus(menus), [menus]);
+  const selectedBookingMenu = displayBookingMenus.find((menu) => menu.id === selectedMenuId) ?? displayBookingMenus[0];
   const selectedDateLabel = useMemo(() => formatJapaneseDate(selectedDate), [selectedDate]);
   const selectedStaff = staffOptions.find((staff) => staff.id === selectedStaffId) ?? staffOptions[0];
   const canSubmit = Boolean(customer.name.trim() && customer.kana.trim() && customer.phone.trim() && customer.email.trim() && customer.agreed);
@@ -142,6 +158,12 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
       ignore = true;
     };
   }, [isLiveReservation]);
+
+  useEffect(() => {
+    if (!displayBookingMenus.some((menu) => menu.id === selectedMenuId)) {
+      setSelectedMenuId(displayBookingMenus[0].id);
+    }
+  }, [displayBookingMenus, selectedMenuId]);
 
   useEffect(() => {
     let ignore = false;
@@ -253,10 +275,12 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
   return (
     <main className="min-h-screen bg-[#F7F3EE] px-4 py-5 text-[#2E2924]">
       <div className="mx-auto w-full max-w-md">
+        <LineAuthStatus verified={authVerified} state={liffState} />
         {step !== "complete" ? <FlowHeader step={step} onBack={() => setStep(previousStep(step))} /> : null}
 
         {step === "menu" ? (
           <MenuStep
+            menus={displayBookingMenus}
             selectedMenuId={selectedMenuId}
             onMenuChange={setSelectedMenuId}
             onNext={() => setStep("datetime")}
@@ -347,10 +371,12 @@ function FlowHeader({ step, onBack }: { step: CalendarStep; onBack: () => void }
 }
 
 function MenuStep({
+  menus,
   selectedMenuId,
   onMenuChange,
   onNext,
 }: {
+  menus: BookingMenu[];
   selectedMenuId: string;
   onMenuChange: (menuId: string) => void;
   onNext: () => void;
@@ -361,7 +387,7 @@ function MenuStep({
       <Card>
         <SectionTitle>ご希望のメニューを選択してください</SectionTitle>
         <div className="mt-4 space-y-3">
-          {bookingMenus.map((menu) => {
+          {menus.map((menu) => {
             const selected = selectedMenuId === menu.id;
 
             return (

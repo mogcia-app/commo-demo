@@ -16,6 +16,7 @@ import {
   type GolfPlan,
 } from "@/lib/booking/golf-start-config";
 import type { AvailableSlot, Menu } from "@/lib/storefront/types";
+import { LineAuthStatus } from "./line-auth-status";
 
 type GolfStep = "plan" | "schedule" | "confirm" | "customer" | "complete";
 
@@ -30,6 +31,26 @@ type CustomerForm = {
   agreed: boolean;
 };
 
+function buildGolfPlans(menus: Menu[]): GolfPlan[] {
+  if (!menus.length) {
+    return golfPlans;
+  }
+
+  return menus.map((menu) => ({
+    id: menu.id,
+    name: menu.name,
+    pricePerPerson: menu.price ?? parsePrice(menu.priceLabel) ?? 0,
+    description: menu.description || "予約ページに表示するプランです。",
+    labels: [menu.category, `${menu.durationMinutes}分`].filter(Boolean),
+  }));
+}
+
+function parsePrice(priceLabel: string) {
+  const numeric = Number(priceLabel.replace(/[^\d]/g, ""));
+
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : undefined;
+}
+
 export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -38,7 +59,7 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const couponId = searchParams.get("couponId")?.trim() || undefined;
   const search = searchParams.toString();
   const loginRedirectPath = search ? `${pathname}?${search}` : pathname;
-  const { profile } = useLineProfile({ loginRedirectPath });
+  const { profile, liffState, authVerified } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<GolfStep>("plan");
   const [selectedPlanId, setSelectedPlanId] = useState(golfPlans[0].id);
   const [selectedPlayerCount, setSelectedPlayerCount] = useState(4);
@@ -60,7 +81,8 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedCourse = golfCourses[0];
-  const selectedPlan = golfPlans.find((plan) => plan.id === selectedPlanId) ?? golfPlans[0];
+  const displayGolfPlans = useMemo(() => buildGolfPlans(menus), [menus]);
+  const selectedPlan = displayGolfPlans.find((plan) => plan.id === selectedPlanId) ?? displayGolfPlans[0];
   const selectedPlayDate = buildGolfPlayDate(selectedPlayDateId);
   const totalPrice = selectedPlan.pricePerPerson * selectedPlayerCount;
   const reservationNumber = useMemo(() => `GOL${(selectedPlayDate.apiDate || getTodayValue()).replaceAll("-", "")}-0001`, [selectedPlayDate.apiDate]);
@@ -102,6 +124,12 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
       ignore = true;
     };
   }, [isLiveReservation]);
+
+  useEffect(() => {
+    if (!displayGolfPlans.some((plan) => plan.id === selectedPlanId)) {
+      setSelectedPlanId(displayGolfPlans[0].id);
+    }
+  }, [displayGolfPlans, selectedPlanId]);
 
   useEffect(() => {
     let ignore = false;
@@ -160,7 +188,7 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
           throw new Error("LINEプロフィールを取得中です。少し待ってから再度お試しください。");
         }
 
-        const selectedMenu = menus.find((menu) => menu.id === selectedPlanId) ?? menus[0];
+        const selectedMenu = menus.find((menu) => menu.id === selectedPlan.id) ?? menus[0];
 
         if (!selectedMenu) {
           throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");
@@ -212,11 +240,13 @@ export function GolfStartReservationSite({ site }: { site: BookingSite }) {
   return (
     <main className="min-h-screen px-4 py-6" style={{ backgroundColor: theme.background, color: theme.ink }}>
       <div className="mx-auto w-full max-w-md">
+        <LineAuthStatus verified={authVerified} state={liffState} />
         <div>
           {step === "plan" ? (
           <PhoneFrame>
             <PlanStep
               selectedCourse={selectedCourse}
+              plans={displayGolfPlans}
               selectedPlanId={selectedPlanId}
               selectedPlayerCount={selectedPlayerCount}
               onSelectPlan={setSelectedPlanId}
@@ -315,6 +345,7 @@ function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) 
 
 function PlanStep({
   selectedCourse,
+  plans,
   selectedPlanId,
   selectedPlayerCount,
   onSelectPlan,
@@ -322,6 +353,7 @@ function PlanStep({
   onNext,
 }: {
   selectedCourse: GolfCourse;
+  plans: GolfPlan[];
   selectedPlanId: string;
   selectedPlayerCount: number;
   onSelectPlan: (planId: string) => void;
@@ -337,7 +369,7 @@ function PlanStep({
         <div>
           <SectionTitle>プランを選択</SectionTitle>
           <div className="mt-3 space-y-2">
-            {golfPlans.map((plan) => {
+            {plans.map((plan) => {
               const selected = selectedPlanId === plan.id;
               return (
                 <button key={plan.id} type="button" onClick={() => onSelectPlan(plan.id)} className="w-full rounded-xl border p-3 text-left" style={{ borderColor: selected ? theme.green : theme.border, backgroundColor: selected ? theme.soft : theme.surface }}>

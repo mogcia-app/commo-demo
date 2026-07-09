@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/admin-shell";
 import {
   fetchAdminAvailability,
   saveAdminAvailability,
+  saveAdminAvailabilityRange,
   type AdminAvailabilitySlot,
 } from "@/lib/admin-api";
 
@@ -18,6 +19,7 @@ export function AvailabilityEditor() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [rangeDays, setRangeDays] = useState(7);
 
   const totalRemaining = useMemo(() => slots.reduce((sum, slot) => sum + Math.max(slot.capacity - slot.booked, 0), 0), [slots]);
 
@@ -64,6 +66,21 @@ export function AvailabilityEditor() {
       setMessage("空き枠を保存しました。");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "空き枠の保存に失敗しました。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function onCreateRange() {
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const result = await saveAdminAvailabilityRange(date, rangeDays, slots);
+      setMessage(`${result.dates[0]}〜${result.dates[result.dates.length - 1]} の空き枠を作成しました。`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "空き枠の一括作成に失敗しました。");
     } finally {
       setIsSaving(false);
     }
@@ -147,6 +164,25 @@ export function AvailabilityEditor() {
             className="rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             保存
+          </button>
+          <label className="grid gap-1 text-sm font-semibold text-commo-ink">
+            一括日数
+            <input
+              type="number"
+              min={1}
+              max={31}
+              value={rangeDays}
+              onChange={(event) => setRangeDays(Math.min(Math.max(Number(event.target.value) || 1, 1), 31))}
+              className="w-24 rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onCreateRange}
+            className="rounded-md border border-commo-main px-4 py-2 text-sm font-semibold text-commo-hover transition hover:bg-commo-main hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            この枠でまとめて作成
           </button>
           <p className="text-sm font-semibold text-slate-500">残り合計 {totalRemaining} 枠</p>
         </div>

@@ -8,6 +8,11 @@ export type LineProfile = {
   pictureUrl: string;
 };
 
+type LineAuthVerification = {
+  verified: boolean;
+  error?: string;
+};
+
 const demoProfile: LineProfile = {
   userId: "demo-line-user",
   displayName: "LINE Demo User",
@@ -19,6 +24,7 @@ const allowDemoProfile = process.env.NODE_ENV !== "production";
 export function useLineProfile(options?: { loginRedirectPath?: string }) {
   const [profile, setProfile] = useState<LineProfile | null>(null);
   const [liffState, setLiffState] = useState("LIFFを確認しています");
+  const [authVerification, setAuthVerification] = useState<LineAuthVerification>({ verified: false });
 
   useEffect(() => {
     let ignore = false;
@@ -29,6 +35,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
       if (!liffId) {
         if (allowDemoProfile) {
           setProfile(demoProfile);
+          setAuthVerification({ verified: true });
           setLiffState("デモプロフィールで表示中");
         } else {
           setLiffState("LIFF IDが未設定です");
@@ -57,22 +64,48 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
         }
 
         const lineProfile = await liff.getProfile();
+        const nextProfile = {
+          userId: lineProfile.userId,
+          displayName: lineProfile.displayName,
+          pictureUrl: lineProfile.pictureUrl ?? "",
+        };
+
         if (!ignore) {
-          setProfile({
-            userId: lineProfile.userId,
-            displayName: lineProfile.displayName,
-            pictureUrl: lineProfile.pictureUrl ?? "",
-          });
+          setProfile(nextProfile);
           clearLoginRedirectTries();
-          setLiffState(liff.isInClient() ? "LINEプロフィールを取得しました" : "LINEログインでプロフィールを取得しました");
+          setLiffState("LINE認証を確認しています");
+        }
+
+        const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          if (!ignore) {
+            setAuthVerification({ verified: false, error: "ID tokenを取得できませんでした。" });
+            setLiffState(liff.isInClient() ? "LINEプロフィールを取得しました" : "LINEログインでプロフィールを取得しました");
+          }
+          return;
+        }
+
+        const verification = await confirmLineAuth(idToken);
+
+        if (!ignore) {
+          if (verification.verified) {
+            setAuthVerification({ verified: true });
+            setLiffState("LINE認証済み");
+          } else {
+            setAuthVerification({ verified: false, error: verification.error });
+            setLiffState("LINE認証のDB確認に失敗しました");
+          }
         }
       } catch (cause) {
         console.error(cause);
         if (!ignore) {
           if (allowDemoProfile) {
             setProfile(demoProfile);
+            setAuthVerification({ verified: true });
             setLiffState("LIFF初期化に失敗したためデモプロフィールで表示中");
           } else {
+            setAuthVerification({ verified: false, error: cause instanceof Error ? cause.message : "LINE認証に失敗しました。" });
             setLiffState("LIFF初期化に失敗しました");
           }
         }
@@ -86,7 +119,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
     };
   }, [options?.loginRedirectPath]);
 
-  return { profile, liffState };
+  return { profile, liffState, authVerified: authVerification.verified, authVerificationError: authVerification.error };
 }
 
 function createLoginRedirectUri(loginRedirectPath?: string) {
@@ -125,4 +158,20 @@ function clearLoginRedirectTries() {
 
 function getLoginRedirectKey(redirectUri: string) {
   return `commo:liff-login:${redirectUri}`;
+}
+
+async function confirmLineAuth(idToken: string): Promise<LineAuthVerification> {
+  const response = await fetch("/api/line/auth-confirmation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ idToken }),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as { verified?: boolean; error?: string };
+
+  if (!response.ok || !body.verified) {
+    return { verified: false, error: body.error ?? "LINE認証の確認に失敗しました。" };
+  }
+
+  return { verified: true };
 }

@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
 import type { BookingSite } from "@/lib/booking-sites";
 import type { AvailableSlot, Menu } from "@/lib/storefront/types";
+import { LineAuthStatus } from "./line-auth-status";
 
 type HotelStep = "search" | "detail" | "confirm" | "customer" | "complete";
 
@@ -55,7 +56,7 @@ const hotel = {
   imageLabel: "HOTEL",
 };
 
-const plans: HotelPlan[] = [
+const fallbackPlans: HotelPlan[] = [
   {
     id: "standard",
     name: "スタンダードプラン",
@@ -79,6 +80,32 @@ const plans: HotelPlan[] = [
   },
 ];
 
+function buildHotelPlans(menus: Menu[]): HotelPlan[] {
+  if (!menus.length) {
+    return fallbackPlans;
+  }
+
+  return menus.map((menu) => ({
+    id: menu.id,
+    name: menu.name,
+    description: menu.description || "予約ページに表示するプランです。",
+    price: menu.price ?? parsePrice(menu.priceLabel) ?? 0,
+    labels: buildPlanLabels(menu),
+  }));
+}
+
+function buildPlanLabels(menu: Menu) {
+  const labels = [menu.category === "room" ? "宿泊プラン" : menu.category, `${Math.round(menu.durationMinutes / 60)}時間`].filter(Boolean);
+
+  return labels.length ? labels : ["LINE予約"];
+}
+
+function parsePrice(priceLabel: string) {
+  const numeric = Number(priceLabel.replace(/[^\d]/g, ""));
+
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : undefined;
+}
+
 export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -88,9 +115,9 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const initialStep = searchParams.get("step") === "complete" ? "complete" : "search";
   const search = searchParams.toString();
   const loginRedirectPath = search ? `${pathname}?${search}` : pathname;
-  const { profile } = useLineProfile({ loginRedirectPath });
+  const { profile, liffState, authVerified } = useLineProfile({ loginRedirectPath });
   const [step, setStep] = useState<HotelStep>(initialStep);
-  const [selectedPlanId, setSelectedPlanId] = useState(plans[0].id);
+  const [selectedPlanId, setSelectedPlanId] = useState(fallbackPlans[0].id);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [customer, setCustomer] = useState<CustomerForm>({
@@ -108,7 +135,8 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) ?? plans[0];
+  const displayPlans = useMemo(() => buildHotelPlans(menus), [menus]);
+  const selectedPlan = displayPlans.find((plan) => plan.id === selectedPlanId) ?? displayPlans[0];
   const reservationNumber = useMemo(() => `R-${(selectedDate || getTodayValue()).replaceAll("-", "")}-123456`, [selectedDate]);
   const canSubmit = Boolean(
     customer.name.trim() &&
@@ -148,6 +176,12 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
       ignore = true;
     };
   }, [isLiveReservation]);
+
+  useEffect(() => {
+    if (!displayPlans.some((plan) => plan.id === selectedPlanId)) {
+      setSelectedPlanId(displayPlans[0].id);
+    }
+  }, [displayPlans, selectedPlanId]);
 
   useEffect(() => {
     let ignore = false;
@@ -206,7 +240,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
           throw new Error("LINEプロフィールを取得中です。少し待ってから再度お試しください。");
         }
 
-        const selectedMenu = menus.find((menu) => menu.id === selectedPlanId) ?? menus[0];
+        const selectedMenu = menus.find((menu) => menu.id === selectedPlan.id) ?? menus[0];
 
         if (!selectedMenu) {
           throw new Error("予約メニューが見つかりません。メニュー設定を確認してください。");
@@ -257,6 +291,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
   return (
     <main className="min-h-screen px-4 py-6" style={{ backgroundColor: theme.background, color: theme.ink }}>
       <div className="mx-auto w-full max-w-md">
+        <LineAuthStatus verified={authVerified} state={liffState} />
         <div>
           {step === "search" ? (
           <PhoneFrame>
@@ -278,7 +313,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
           ) : null}
           {step === "detail" ? (
           <PhoneFrame>
-            <DetailStep selectedPlanId={selectedPlanId} onSelectPlan={setSelectedPlanId} onBack={() => setStep("search")} onNext={() => setStep("confirm")} />
+            <DetailStep plans={displayPlans} selectedPlanId={selectedPlanId} onSelectPlan={setSelectedPlanId} onBack={() => setStep("search")} onNext={() => setStep("confirm")} />
           </PhoneFrame>
           ) : null}
           {step === "confirm" ? (
@@ -400,11 +435,13 @@ function HotelIntro() {
 }
 
 function DetailStep({
+  plans,
   selectedPlanId,
   onSelectPlan,
   onBack,
   onNext,
 }: {
+  plans: HotelPlan[];
   selectedPlanId: string;
   onSelectPlan: (planId: string) => void;
   onBack: () => void;
