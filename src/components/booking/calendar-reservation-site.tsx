@@ -139,7 +139,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
         return;
       }
 
-      const response = await fetch("/api/menus");
+      const response = await fetch(`/api/menus?template=${encodeURIComponent(site.slug)}`);
 
       if (!response.ok) {
         return;
@@ -157,7 +157,7 @@ export function CalendarReservationSite({ site }: { site: BookingSite }) {
     return () => {
       ignore = true;
     };
-  }, [isLiveReservation]);
+  }, [isLiveReservation, site.slug]);
 
   useEffect(() => {
     if (!displayBookingMenus.some((menu) => menu.id === selectedMenuId)) {

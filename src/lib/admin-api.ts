@@ -12,7 +12,7 @@ export type AdminAvailabilitySlot = {
   available: boolean;
 };
 
-export type AdminMenu = Pick<Menu, "id" | "name" | "description" | "price" | "priceLabel" | "durationMinutes" | "category" | "imageUrl" | "enabled" | "sortOrder">;
+export type AdminMenu = Pick<Menu, "id" | "bookingTemplate" | "name" | "description" | "price" | "priceLabel" | "durationMinutes" | "category" | "imageUrl" | "enabled" | "sortOrder">;
 
 async function getIdToken() {
   const user = firebaseAuth.currentUser;

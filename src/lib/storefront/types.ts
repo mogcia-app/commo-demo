@@ -96,6 +96,7 @@ export type Store = {
 export type Menu = {
   id: string;
   storeId: string;
+  bookingTemplate?: string;
   name: string;
   description: string;
   priceLabel: string;

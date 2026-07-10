@@ -51,6 +51,7 @@ type BusinessHoursDocument = {
 };
 
 type MenuDocument = {
+  bookingTemplate?: string;
   name?: string;
   description?: string;
   price?: number | string;
@@ -173,18 +174,19 @@ export async function resolveActiveStoreForApi(): Promise<StoreResolutionResult>
   return { ok: true, store };
 }
 
-export async function getMenus(): Promise<Menu[]> {
+export async function getMenus(options?: { bookingTemplate?: string }): Promise<Menu[]> {
   try {
     const snapshot = await getAdminDb().collection("menus").get();
     const menus = snapshot.docs
       .map((doc) => buildMenuFromDocument(doc.id, doc.data() as MenuDocument))
       .filter((menu) => menu.enabled !== false)
+      .filter((menu) => matchesBookingTemplate(menu, options?.bookingTemplate))
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-    return menus.length ? menus : getMockMenus();
+    return menus.length ? menus : getMockMenus(options?.bookingTemplate);
   } catch (cause) {
     console.warn("Firestoreのmenus取得に失敗したためモックにフォールバックします", cause);
-    return getMockMenus();
+    return getMockMenus(options?.bookingTemplate);
   }
 }
 
@@ -207,7 +209,11 @@ export async function getStaff(): Promise<Staff[]> {
   }
 }
 
-export async function getQuestions(): Promise<Question[]> {
+export async function getQuestions(options?: { bookingTemplate?: string }): Promise<Question[]> {
+  if (isStandaloneBookingTemplate(options?.bookingTemplate)) {
+    return [];
+  }
+
   return mockQuestions[mockStores[0].id] ?? [];
 }
 
@@ -246,6 +252,7 @@ function buildMenuFromDocument(id: string, data: MenuDocument): Menu {
   return {
     id,
     storeId: defaultStoreId,
+    bookingTemplate: data.bookingTemplate?.trim() || undefined,
     name: data.name?.trim() || "名称未設定メニュー",
     description: data.description?.trim() || "",
     price: Number.isFinite(price) ? price : undefined,
@@ -258,8 +265,40 @@ function buildMenuFromDocument(id: string, data: MenuDocument): Menu {
   };
 }
 
-function getMockMenus(): Menu[] {
-  return mockMenus.filter((menu) => menu.storeId === mockStores[0].id).map((menu) => ({ ...menu, storeId: defaultStoreId }));
+function getMockMenus(bookingTemplate?: string): Menu[] {
+  return mockMenus
+    .map((menu) => ({ ...menu, storeId: defaultStoreId }))
+    .filter((menu) => matchesBookingTemplate(menu, bookingTemplate));
+}
+
+function matchesBookingTemplate(menu: Menu, bookingTemplate?: string) {
+  if (!bookingTemplate) {
+    return true;
+  }
+
+  if (menu.bookingTemplate) {
+    return menu.bookingTemplate === bookingTemplate;
+  }
+
+  const category = menu.category.toLowerCase();
+
+  if (bookingTemplate === "hotel-search") {
+    return ["room", "hotel", "stay"].includes(category);
+  }
+
+  if (bookingTemplate === "calendar") {
+    return ["hair", "care", "salon", "beauty"].includes(category);
+  }
+
+  if (bookingTemplate === "golf-start") {
+    return ["golf", "course", "plan"].includes(category);
+  }
+
+  return true;
+}
+
+function isStandaloneBookingTemplate(bookingTemplate?: string) {
+  return bookingTemplate === "hotel-search" || bookingTemplate === "calendar" || bookingTemplate === "golf-start";
 }
 
 function buildStaffFromDocument(id: string, data: StaffDocument): Staff {

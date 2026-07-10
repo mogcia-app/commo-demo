@@ -157,7 +157,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
         return;
       }
 
-      const response = await fetch("/api/menus");
+      const response = await fetch(`/api/menus?template=${encodeURIComponent(site.slug)}`);
 
       if (!response.ok) {
         return;
@@ -175,7 +175,7 @@ export function HotelSearchReservationSite({ site }: { site: BookingSite }) {
     return () => {
       ignore = true;
     };
-  }, [isLiveReservation]);
+  }, [isLiveReservation, site.slug]);
 
   useEffect(() => {
     if (!displayPlans.some((plan) => plan.id === selectedPlanId)) {

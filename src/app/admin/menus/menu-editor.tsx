@@ -7,6 +7,7 @@ import { fetchAdminMenus, saveAdminMenus, type AdminMenu } from "@/lib/admin-api
 
 const emptyMenu: AdminMenu = {
   id: "",
+  bookingTemplate: "hotel-search",
   name: "",
   description: "",
   price: undefined,
@@ -134,10 +135,11 @@ export function MenuEditor() {
         {message ? <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
 
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left text-sm">
+          <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left text-sm">
             <thead>
               <tr className="text-xs font-semibold text-slate-500">
                 <th className="border-b border-slate-200 px-3 py-2">表示</th>
+                <th className="border-b border-slate-200 px-3 py-2">対象ページ</th>
                 <th className="border-b border-slate-200 px-3 py-2">メニュー名</th>
                 <th className="border-b border-slate-200 px-3 py-2">表示価格</th>
                 <th className="border-b border-slate-200 px-3 py-2">数値価格</th>
@@ -157,6 +159,17 @@ export function MenuEditor() {
                       onChange={(event) => updateMenu(index, { enabled: event.target.checked })}
                       className="h-4 w-4"
                     />
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-3">
+                    <select
+                      value={menu.bookingTemplate ?? "hotel-search"}
+                      onChange={(event) => updateMenu(index, { bookingTemplate: event.target.value })}
+                      className="w-36 rounded-md border border-slate-200 px-3 py-2"
+                    >
+                      <option value="hotel-search">ホテル</option>
+                      <option value="calendar">カレンダー</option>
+                      <option value="golf-start">ゴルフ</option>
+                    </select>
                   </td>
                   <td className="border-b border-slate-100 px-3 py-3">
                     <input

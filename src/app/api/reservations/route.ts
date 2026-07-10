@@ -31,8 +31,10 @@ export async function POST(request: Request) {
 
   const { store } = resolvedStore;
   const body = (await request.json()) as ReservationRequest;
-  const menus = await getMenus();
-  const questions = await getQuestions();
+  const answers = body.answers ?? {};
+  const bookingTemplate = answers.bookingTemplate?.trim();
+  const menus = await getMenus({ bookingTemplate });
+  const questions = await getQuestions({ bookingTemplate });
 
   if (!body.lineUserId?.trim()) {
     return NextResponse.json({ error: "LINE userIdが不足しています。" }, { status: 400 });
@@ -52,7 +54,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "日時を選択してください。" }, { status: 400 });
   }
 
-  const answers = body.answers ?? {};
   const missingQuestion = questions.find((question) => question.required && !answers[question.id]?.trim());
 
   if (missingQuestion) {

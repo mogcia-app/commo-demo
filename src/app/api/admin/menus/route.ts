@@ -10,6 +10,7 @@ type AdminMenuRequest = {
 
 type AdminMenuInput = {
   id?: string;
+  bookingTemplate?: string;
   name?: string;
   description?: string;
   price?: number | string;
@@ -58,6 +59,7 @@ export async function PUT(request: Request) {
       ref,
       {
         name: menu.name,
+        bookingTemplate: menu.bookingTemplate,
         description: menu.description,
         price: menu.price,
         priceLabel: menu.priceLabel,
@@ -88,7 +90,7 @@ async function getAdminMenus(): Promise<Menu[]> {
   const snapshot = await getAdminDb().collection("menus").orderBy("sortOrder", "asc").get();
 
   if (snapshot.empty) {
-    return mockMenus.map((menu, index) => ({ ...menu, storeId: "default", sortOrder: index, enabled: true }));
+    return mockMenus.map((menu, index) => ({ ...menu, storeId: "default", bookingTemplate: inferBookingTemplate(menu.category), sortOrder: index, enabled: true }));
   }
 
   return snapshot.docs.map((doc, index) => buildMenu(doc.id, doc.data(), index));
@@ -100,6 +102,7 @@ function normalizeMenuInput(input: AdminMenuInput) {
 
   return {
     id: input.id?.trim(),
+    bookingTemplate: normalizeBookingTemplate(input.bookingTemplate, input.category),
     name: input.name?.trim() ?? "",
     description: input.description?.trim() ?? "",
     price: Number.isFinite(price) ? price : undefined,
@@ -118,6 +121,7 @@ function buildMenu(id: string, data: FirebaseFirestore.DocumentData, fallbackSor
   return {
     id,
     storeId: "default",
+    bookingTemplate: typeof data.bookingTemplate === "string" ? data.bookingTemplate : inferBookingTemplate(typeof data.category === "string" ? data.category : "menu"),
     name: typeof data.name === "string" ? data.name : "名称未設定メニュー",
     description: typeof data.description === "string" ? data.description : "",
     price: Number.isFinite(price) ? price : undefined,
@@ -132,4 +136,26 @@ function buildMenu(id: string, data: FirebaseFirestore.DocumentData, fallbackSor
 
 function createMenuId(name: string, index: number) {
   return `menu_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || index + 1}`;
+}
+
+function normalizeBookingTemplate(value: unknown, category: unknown) {
+  if (value === "hotel-search" || value === "calendar" || value === "golf-start") {
+    return value;
+  }
+
+  return inferBookingTemplate(typeof category === "string" ? category : "");
+}
+
+function inferBookingTemplate(category: string) {
+  const normalized = category.toLowerCase();
+
+  if (["room", "hotel", "stay"].includes(normalized)) {
+    return "hotel-search";
+  }
+
+  if (["golf", "course", "plan"].includes(normalized)) {
+    return "golf-start";
+  }
+
+  return "calendar";
 }
