@@ -1,5 +1,25 @@
 import type { ReservationStatus } from "./constants";
 
+export type IndustryType = "golf_course" | "hotel" | "restaurant" | "beauty_salon" | "other";
+
+export type OrganizationLineSettings = {
+  industryType: IndustryType;
+  enabledModules: {
+    surveys: boolean;
+    segments: boolean;
+    broadcasts: boolean;
+    stepMessages: boolean;
+    analytics: boolean;
+    aiSuggestions: boolean;
+  };
+};
+
+export type Organization = {
+  id: string;
+  name: string;
+  lineSettings: OrganizationLineSettings;
+};
+
 export type Customer = {
   id: string;
   shopId: string;

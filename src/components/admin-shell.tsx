@@ -7,10 +7,16 @@ import { ReactNode, useEffect, useState } from "react";
 import { firebaseAuth } from "@/lib/firebase/client";
 
 const navItems = [
-  { href: "/admin", label: "ダッシュボード", description: "店舗状況の確認" },
-  { href: "/admin/reservations", label: "予約一覧", description: "予約と顧客情報" },
-  { href: "/admin/availability", label: "空き枠", description: "受付枠の管理" },
-  { href: "/admin/menus", label: "メニュー", description: "料金とプラン" },
+  { href: "/admin", label: "AI司令室" },
+  { href: "/admin/line", label: "ダッシュボード" },
+  { href: "/admin/line/users", label: "LINEユーザー" },
+  { href: "/admin/line/segments", label: "セグメント" },
+  { href: "/admin/line/surveys", label: "アンケート" },
+  { href: "/admin/line/broadcasts", label: "配信管理" },
+  { href: "/admin/line/step-messages", label: "ステップ配信" },
+  { href: "/admin/line/analytics", label: "分析" },
+  { href: "/admin/line/ai-suggestions", label: "AI自動運用" },
+  { href: "/admin/line/settings", label: "LINE設定" },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -43,18 +49,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <main className="min-h-screen bg-slate-50 text-commo-ink">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col lg:flex-row">
-        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+      <div className="min-h-screen w-full">
+        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
           <div>
             <Link href="/admin" className="text-2xl font-bold tracking-normal text-commo-ink">
               commo<span className="text-commo-main">.</span>
             </Link>
-            <p className="mt-1 text-xs font-semibold text-slate-500">店舗管理画面</p>
+            <p className="mt-1 text-xs font-semibold text-slate-500">LINE運用AIエージェント</p>
           </div>
 
-          <nav className="mt-5 grid gap-2 sm:grid-cols-4 lg:grid-cols-1">
+          <nav className="mt-5 grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-1">
             {navItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active =
+                pathname === item.href ||
+                (item.href !== "/admin" && item.href !== "/admin/line" && pathname.startsWith(`${item.href}/`));
 
               return (
                 <Link
@@ -67,7 +75,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   }`}
                 >
                   <span className="block text-sm font-bold">{item.label}</span>
-                  <span className="mt-1 block text-xs font-semibold text-slate-400">{item.description}</span>
                 </Link>
               );
             })}
@@ -92,7 +99,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1 px-4 py-6 lg:px-8">{children}</section>
+        <section className="mx-auto min-w-0 max-w-7xl px-4 py-6 lg:ml-64 lg:px-8">{children}</section>
       </div>
     </main>
   );
