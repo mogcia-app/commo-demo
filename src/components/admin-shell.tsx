@@ -20,7 +20,7 @@ const navItems = [
 export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const lineBasePath = pathname.startsWith("/admin/line-2") ? "/admin/line-2" : "/admin/line";
+  const lineBasePath = "/admin/line";
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
 

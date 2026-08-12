@@ -23,7 +23,7 @@ type LineAdminView = "dashboard" | "users" | "user-detail" | "segments" | "surve
 const storageKey = "commo.lineSettings";
 
 const defaultLineSettings: OrganizationLineSettings = {
-  industryType: "golf_course",
+  industryType: "hotel",
   enabledModules: {
     surveys: true,
     segments: true,
@@ -35,7 +35,6 @@ const defaultLineSettings: OrganizationLineSettings = {
 };
 
 const industryOptions: { value: IndustryType; label: string }[] = [
-  { value: "golf_course", label: "ゴルフ場" },
   { value: "hotel", label: "ホテル" },
   { value: "restaurant", label: "飲食店" },
   { value: "beauty_salon", label: "美容室" },
@@ -203,7 +202,7 @@ export function LineAdminPage({
       {view === "segments" ? <SegmentsView template={template} /> : null}
       {view === "surveys" ? <SurveysView template={template} basePath={basePath} /> : null}
       {view === "broadcasts" ? <BroadcastsView template={template} overview={overview} /> : null}
-      {view === "step-messages" ? <StepMessagesView template={template} /> : null}
+      {view === "step-messages" ? <DashboardView template={template} basePath={basePath} overview={overview} /> : null}
       {view === "analytics" ? <AnalyticsView template={template} /> : null}
       {view === "ai-suggestions" ? <AiSuggestionsView template={template} overview={overview} /> : null}
       {view === "settings" ? <SettingsView settings={settings} template={template} message={settingsMessage} forcedIndustryType={forcedIndustryType} onSave={saveSettings} /> : null}
@@ -1051,25 +1050,6 @@ function countSurveyTargets(responses: AdminSurveyResponse[], lineUsers: AdminSu
   });
 
   return targets.size;
-}
-
-function StepMessagesView({ template }: { template: IndustryLineTemplate }) {
-  return (
-    <div className="space-y-4">
-      {template.stepCampaignTemplates.map((campaign) => (
-        <Panel key={campaign.title} title={campaign.title} sub="ステップ配信テンプレート">
-          <div className="grid gap-3 md:grid-cols-5">
-            {campaign.steps.map((step) => (
-              <article key={step.timing} className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm font-bold text-commo-hover">{step.timing}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{step.message}</p>
-              </article>
-            ))}
-          </div>
-        </Panel>
-      ))}
-    </div>
-  );
 }
 
 function AnalyticsView({ template }: { template: IndustryLineTemplate }) {

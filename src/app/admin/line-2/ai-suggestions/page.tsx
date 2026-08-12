@@ -1,5 +1,5 @@
-import { LineAdminPage } from "../../line/line-admin-common";
+import { redirect } from "next/navigation";
 
 export default function AdminLine2AiSuggestionsPage() {
-  return <LineAdminPage view="ai-suggestions" basePath="/admin/line-2" forcedIndustryType="hotel" />;
+  redirect("/admin/line/ai-suggestions");
 }

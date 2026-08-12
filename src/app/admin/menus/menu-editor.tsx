@@ -168,7 +168,6 @@ export function MenuEditor() {
                     >
                       <option value="hotel-search">ホテル</option>
                       <option value="calendar">カレンダー</option>
-                      <option value="golf-start">ゴルフ</option>
                     </select>
                   </td>
                   <td className="border-b border-slate-100 px-3 py-3">

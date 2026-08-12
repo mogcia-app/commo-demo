@@ -4,7 +4,7 @@ import { getAdminDb, requireAdminUser } from "@/lib/firebase/admin";
 import type { IndustryType, OrganizationLineSettings } from "@/lib/types";
 
 const defaultLineSettings: OrganizationLineSettings = {
-  industryType: "golf_course",
+  industryType: "hotel",
   enabledModules: {
     surveys: true,
     segments: true,
@@ -15,7 +15,7 @@ const defaultLineSettings: OrganizationLineSettings = {
   },
 };
 
-const industryTypes = new Set<IndustryType>(["golf_course", "hotel", "restaurant", "beauty_salon", "other"]);
+const industryTypes = new Set<IndustryType>(["hotel", "restaurant", "beauty_salon", "other"]);
 
 export async function GET(request: Request) {
   await requireAdminUser(request);

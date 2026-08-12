@@ -1,5 +1,4 @@
 import type { IndustryType } from "@/lib/types";
-import { golfCourseLineTemplate } from "./golf-course";
 import { hotelLineTemplate } from "./hotel";
 import type { IndustryLineTemplate } from "./types";
 
@@ -15,7 +14,7 @@ const otherLineTemplate: IndustryLineTemplate = {
 };
 
 export const industryLineTemplates: Record<IndustryType, IndustryLineTemplate> = {
-  golf_course: golfCourseLineTemplate,
+  golf_course: hotelLineTemplate,
   hotel: hotelLineTemplate,
   restaurant: otherLineTemplate,
   beauty_salon: otherLineTemplate,
@@ -23,7 +22,7 @@ export const industryLineTemplates: Record<IndustryType, IndustryLineTemplate> =
 };
 
 export function getIndustryLineTemplate(industryType: IndustryType | null | undefined) {
-  return industryLineTemplates[industryType ?? "golf_course"] ?? golfCourseLineTemplate;
+  return industryLineTemplates[industryType ?? "hotel"] ?? hotelLineTemplate;
 }
 
 export type { IndustryLineTemplate } from "./types";

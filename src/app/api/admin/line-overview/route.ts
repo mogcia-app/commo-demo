@@ -20,7 +20,7 @@ type LineProfile = {
   statusMessage?: string;
 };
 
-const industryTypes = new Set<IndustryType>(["golf_course", "hotel", "restaurant", "beauty_salon", "other"]);
+const industryTypes = new Set<IndustryType>(["hotel", "restaurant", "beauty_salon", "other"]);
 
 export async function GET(request: Request) {
   try {
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const requestedIndustry = url.searchParams.get("industryType");
-    const industryType: IndustryType = requestedIndustry && industryTypes.has(requestedIndustry as IndustryType) ? (requestedIndustry as IndustryType) : "golf_course";
+    const industryType: IndustryType = requestedIndustry && industryTypes.has(requestedIndustry as IndustryType) ? (requestedIndustry as IndustryType) : "hotel";
     const template = getIndustryLineTemplate(industryType);
     const db = getAdminDb();
 

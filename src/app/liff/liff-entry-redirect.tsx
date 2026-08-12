@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { CalendarReservationSite } from "@/components/booking/calendar-reservation-site";
-import { GolfStartReservationSite } from "@/components/booking/golf-start-reservation-site";
 import { HotelSearchReservationSite } from "@/components/booking/hotel-search-reservation-site";
 import { SurveyForm } from "@/app/demo/survey-form";
 import { bookingSites, type BookingSiteSlug } from "@/lib/booking-sites";
 
 const defaultBookingPath = "/hotel-search";
-const liffContentPaths = ["/calendar", "/hotel-search", "/golf-start", "/demo"];
+const liffContentPaths = ["/calendar", "/hotel-search", "/demo"];
 const liffPathPrefix = "/liff";
 
 export function LiffEntryRedirect() {
@@ -71,7 +70,7 @@ function getStateParams(statePath: string | null) {
 function getSiteSlug(path: string): BookingSiteSlug {
   const slug = path.slice(1) as BookingSiteSlug;
 
-  if (slug === "calendar" || slug === "hotel-search" || slug === "golf-start") {
+  if (slug === "calendar" || slug === "hotel-search") {
     return slug;
   }
 
@@ -93,10 +92,6 @@ function renderLiffContent(path: string) {
 
   if (siteSlug === "calendar") {
     return <CalendarReservationSite site={bookingSites.calendar} />;
-  }
-
-  if (siteSlug === "golf-start") {
-    return <GolfStartReservationSite site={bookingSites["golf-start"]} />;
   }
 
   return <HotelSearchReservationSite site={bookingSites["hotel-search"]} />;

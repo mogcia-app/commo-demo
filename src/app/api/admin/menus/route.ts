@@ -139,7 +139,7 @@ function createMenuId(name: string, index: number) {
 }
 
 function normalizeBookingTemplate(value: unknown, category: unknown) {
-  if (value === "hotel-search" || value === "calendar" || value === "golf-start") {
+  if (value === "hotel-search" || value === "calendar") {
     return value;
   }
 
@@ -151,10 +151,6 @@ function inferBookingTemplate(category: string) {
 
   if (["room", "hotel", "stay"].includes(normalized)) {
     return "hotel-search";
-  }
-
-  if (["golf", "course", "plan"].includes(normalized)) {
-    return "golf-start";
   }
 
   return "calendar";

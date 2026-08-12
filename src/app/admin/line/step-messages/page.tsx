@@ -1,5 +1,5 @@
-import { LineAdminPage } from "../line-admin-common";
+import { redirect } from "next/navigation";
 
 export default function AdminLineStepMessagesPage() {
-  return <LineAdminPage view="step-messages" />;
+  redirect("/admin/line");
 }
