@@ -71,6 +71,11 @@ export async function POST(request: Request) {
     await db.runTransaction(async (transaction) => {
       const existingLineUser = await transaction.get(friend.lineUserRef);
       const customerId = `line_${friend.safeLineUserId}`;
+      const existingLineUserData = existingLineUser.data() ?? {};
+
+      if (hasSurveyAnswered(existingLineUserData)) {
+        throw new SurveyAlreadyAnsweredError();
+      }
 
       transaction.set(surveyResponseRef, {
         lineUserId,
@@ -141,6 +146,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: cause.message }, { status: cause.status });
     }
 
+    if (cause instanceof SurveyAlreadyAnsweredError) {
+      return NextResponse.json({ error: cause.message }, { status: 409 });
+    }
+
     console.error(cause);
     return NextResponse.json(
       { error: cause instanceof Error ? cause.message : "アンケート回答の保存に失敗しました。" },
@@ -159,4 +168,14 @@ function normalizeStringArray(value: unknown) {
 
 function buildSurveyTags(input: { ageGroup: string; purpose: string; prefecture: string; region: string; interests: string[]; usageCount: string; weekdayNeeds: string }) {
   return [...new Set([input.ageGroup, `${input.purpose}関心`, input.prefecture, input.region ? `${input.region}エリア` : "", input.usageCount, input.weekdayNeeds, ...input.interests].filter(Boolean))];
+}
+
+function hasSurveyAnswered(data: FirebaseFirestore.DocumentData) {
+  return Boolean(data.surveyAnsweredAt || data.latestSurveyResponseId || data.surveyAnswers);
+}
+
+class SurveyAlreadyAnsweredError extends Error {
+  constructor() {
+    super("アンケートはすでに回答済みです。ご協力ありがとうございました。");
+  }
 }

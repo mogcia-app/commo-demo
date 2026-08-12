@@ -32,6 +32,7 @@ export function SurveyForm() {
     comment: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [alreadyAnswered, setAlreadyAnswered] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedResponseId, setSavedResponseId] = useState("");
@@ -51,7 +52,16 @@ export function SurveyForm() {
         idToken,
         source: "liff",
       }),
-    }).catch(() => undefined);
+    })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => ({}))) as { alreadyAnswered?: boolean; latestSurveyResponseId?: string };
+
+        if (response.ok && body.alreadyAnswered) {
+          setAlreadyAnswered(true);
+          setSavedResponseId(body.latestSurveyResponseId ?? "");
+        }
+      })
+      .catch(() => undefined);
   }, [authVerified, idToken, profile?.displayName, profile?.pictureUrl, profile?.userId]);
 
   const answeredRequiredCount = useMemo(() => {
@@ -117,36 +127,39 @@ export function SurveyForm() {
 
       setSavedResponseId(body.surveyResponse?.id ?? "");
       setSubmitted(true);
+      setAlreadyAnswered(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "アンケート回答の保存に失敗しました。");
+      const message = cause instanceof Error ? cause.message : "アンケート回答の保存に失敗しました。";
+      setError(message);
+
+      if (message.includes("すでに回答済み")) {
+        setAlreadyAnswered(true);
+      }
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (submitted) {
+  if (submitted || alreadyAnswered) {
     return (
       <section className="rounded-md border border-emerald-200 bg-white p-6 shadow-soft">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-700">✓</div>
-        <p className="mt-5 text-sm font-bold text-emerald-700">回答を受け付けました</p>
+        <p className="mt-5 text-sm font-bold text-emerald-700">{alreadyAnswered ? "回答済みです" : "回答を受け付けました"}</p>
         <h2 className="mt-2 text-2xl font-bold text-commo-ink">ご協力ありがとうございます</h2>
-        <p className="mt-3 text-sm leading-7 text-slate-600">回答内容を保存しました。</p>
+        <p className="mt-3 text-sm leading-7 text-slate-600">
+          {alreadyAnswered ? "アンケートはすでに回答済みです。回答内容に合わせておすすめプランをご案内します。" : "回答内容を保存しました。"}
+        </p>
         {savedResponseId ? <p className="mt-2 text-xs font-semibold text-slate-500">回答ID: {savedResponseId}</p> : null}
-        <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
-          <SummaryItem label="お名前" value={answer.name} />
-          <SummaryItem label="年代" value={answer.ageGroup} />
-          <SummaryItem label="利用目的" value={answer.purpose} />
-          <SummaryItem label="お住まい" value={answer.prefecture} />
-          <SummaryItem label="利用回数" value={answer.usageCount} />
-          <SummaryItem label="平日ニーズ" value={answer.weekdayNeeds} />
-        </dl>
-        <button
-          type="button"
-          onClick={() => setSubmitted(false)}
-          className="mt-6 rounded-md border border-commo-main px-5 py-3 text-sm font-bold text-commo-hover transition hover:bg-commo-soft"
-        >
-          回答を修正する
-        </button>
+        {!alreadyAnswered ? (
+          <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
+            <SummaryItem label="お名前" value={answer.name} />
+            <SummaryItem label="年代" value={answer.ageGroup} />
+            <SummaryItem label="利用目的" value={answer.purpose} />
+            <SummaryItem label="お住まい" value={answer.prefecture} />
+            <SummaryItem label="利用回数" value={answer.usageCount} />
+            <SummaryItem label="平日ニーズ" value={answer.weekdayNeeds} />
+          </dl>
+        ) : null}
       </section>
     );
   }

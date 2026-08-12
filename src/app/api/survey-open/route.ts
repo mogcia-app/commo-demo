@@ -25,6 +25,15 @@ export async function POST(request: Request) {
     const eventRef = db.collection("analyticsEvents").doc();
     const displayName = body.lineDisplayName?.trim() || friend.profile.displayName;
     const pictureUrl = body.linePictureUrl?.trim() || friend.profile.pictureUrl;
+    const lineUserData = friend.lineUserSnapshot.data() ?? {};
+
+    if (hasSurveyAnswered(lineUserData)) {
+      return NextResponse.json({
+        tracked: true,
+        alreadyAnswered: true,
+        latestSurveyResponseId: typeof lineUserData.latestSurveyResponseId === "string" ? lineUserData.latestSurveyResponseId : "",
+      });
+    }
 
     await Promise.all([
       friend.lineUserRef.set(
@@ -51,7 +60,7 @@ export async function POST(request: Request) {
       }),
     ]);
 
-    return NextResponse.json({ tracked: true });
+    return NextResponse.json({ tracked: true, alreadyAnswered: false });
   } catch (cause) {
     if (cause instanceof LineFriendAuthError) {
       return NextResponse.json({ error: cause.message }, { status: cause.status });
@@ -63,4 +72,8 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+function hasSurveyAnswered(data: FirebaseFirestore.DocumentData) {
+  return Boolean(data.surveyAnsweredAt || data.latestSurveyResponseId || data.surveyAnswers);
 }
