@@ -11,9 +11,11 @@ import {
   saveAdminLineSettings,
   sendAdminSurveyBroadcast,
   type AdminLineOverview,
+  type AdminSurveyLineUser,
   type AdminSurveyResponse,
   type AdminSurveySegments,
 } from "@/lib/admin-api";
+import { ageGroupOptions, prefectureOptions, regionOptions } from "@/lib/survey-taxonomy";
 import type { IndustryType, OrganizationLineSettings } from "@/lib/types";
 
 type LineAdminView = "dashboard" | "users" | "user-detail" | "segments" | "surveys" | "broadcasts" | "step-messages" | "analytics" | "ai-suggestions" | "settings";
@@ -449,6 +451,7 @@ function SegmentsView({ template }: { template: IndustryLineTemplate }) {
 function SurveysView({ template }: { template: IndustryLineTemplate }) {
   return (
     <div className="space-y-4">
+      <HotelSurveyResponsesPanel />
       {template.surveys.map((survey) => (
         <Panel key={survey.title} title={survey.title} sub="業種別の初期アンケートテンプレート">
           <div className="grid gap-3 md:grid-cols-3">
@@ -484,23 +487,213 @@ function BroadcastsView({ template, overview }: { template: IndustryLineTemplate
   );
 }
 
-function SurveyBroadcastPanel() {
+function HotelSurveyResponsesPanel() {
   const [responses, setResponses] = useState<AdminSurveyResponse[]>([]);
+  const [lineUsers, setLineUsers] = useState<AdminSurveyLineUser[]>([]);
   const [segments, setSegments] = useState<AdminSurveySegments>({
+    ageGroups: [],
     purposes: [],
     areas: [],
+    prefectures: [],
+    regions: [],
+    interests: [],
+    usageCounts: [],
+    weekdayNeeds: [],
+  });
+  const [delivery, setDelivery] = useState({ latestBroadcastId: "", targetCount: 0, unopenedCount: 0, openedNotAnsweredCount: 0, answeredCount: 0 });
+  const [filters, setFilters] = useState({
+    ageGroup: "",
+    purpose: "",
+    region: "",
+    prefecture: "",
+    status: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [statusMessage, setStatusMessage] = useState("");
+  const surveyUrl = typeof window === "undefined" ? "/demo" : `${window.location.origin}/demo`;
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadResponses() {
+      setLoading(true);
+      setStatusMessage("");
+
+      try {
+        const result = await fetchAdminSurveyResponses();
+
+        if (!ignore) {
+          setResponses(result.responses);
+          setLineUsers(result.lineUsers);
+          setSegments(result.segments);
+          setDelivery(result.delivery);
+        }
+      } catch (cause) {
+        if (!ignore) {
+          setStatusMessage(cause instanceof Error ? cause.message : "アンケート回答の取得に失敗しました。");
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadResponses();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const latestResponseByLineUserId = useMemo(() => {
+    const map = new Map<string, AdminSurveyResponse>();
+
+    responses.forEach((response) => {
+      if (response.lineUserId && !map.has(response.lineUserId)) {
+        map.set(response.lineUserId, response);
+      }
+    });
+
+    return map;
+  }, [responses]);
+
+  const rows = useMemo(() => {
+    const answeredRows: AdminSurveyLineUser[] = responses
+      .filter((response) => response.lineUserId && !lineUsers.some((user) => user.lineUserId === response.lineUserId))
+      .map((response) => ({
+        id: response.id,
+        lineUserId: response.lineUserId,
+        displayName: response.lineDisplayName || response.name,
+        pictureUrl: "",
+        friendAddedAt: "",
+        surveyOpenedAt: "",
+        surveyAnsweredAt: response.createdAt,
+        lastMessageAt: "",
+        latestSurveyBroadcastId: "",
+        surveyStatus: "回答済み",
+        answers: response.answers,
+      }));
+
+    return [...lineUsers, ...answeredRows].filter((user) => {
+      const response = latestResponseByLineUserId.get(user.lineUserId);
+      const answers = response?.answers ?? user.answers;
+
+      if (filters.ageGroup && answers.ageGroup !== filters.ageGroup) {
+        return false;
+      }
+
+      if (filters.purpose && answers.purpose !== filters.purpose) {
+        return false;
+      }
+
+      if (filters.region && answers.region !== filters.region) {
+        return false;
+      }
+
+      if (filters.prefecture && answers.prefecture !== filters.prefecture) {
+        return false;
+      }
+
+      if (filters.status && user.surveyStatus !== filters.status) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [filters.ageGroup, filters.prefecture, filters.purpose, filters.region, filters.status, latestResponseByLineUserId, lineUsers, responses]);
+
+  return (
+    <Panel title="ホテルアンケート回答・分類" sub="URL配信、回答、地域分類、開封状況をまとめて確認します">
+      <div className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="最新配信対象" value={loading ? "..." : `${delivery.targetCount}人`} sub="直近のアンケート配信" />
+        <MetricCard label="未開封" value={loading ? "..." : `${delivery.unopenedCount}人`} sub="配信済み・未開封" />
+        <MetricCard label="開封済み未回答" value={loading ? "..." : `${delivery.openedNotAnsweredCount}人`} sub="URLを開いたが未回答" />
+        <MetricCard label="回答済み" value={loading ? "..." : `${delivery.answeredCount}人`} sub="回答保存済み" />
+      </div>
+
+      <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+        <p className="text-xs font-bold text-slate-500">配信用アンケートURL</p>
+        <p className="mt-1 break-all text-sm font-bold text-commo-ink">{surveyUrl}</p>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        <SegmentSelect label="年代" value={filters.ageGroup} options={toSegmentOptions(ageGroupOptions, segments.ageGroups)} onChange={(value) => setFilters((current) => ({ ...current, ageGroup: value }))} />
+        <SegmentSelect label="利用目的" value={filters.purpose} options={segments.purposes} onChange={(value) => setFilters((current) => ({ ...current, purpose: value }))} />
+        <SegmentSelect label="地方" value={filters.region} options={toSegmentOptions(regionOptions, segments.regions)} onChange={(value) => setFilters((current) => ({ ...current, region: value }))} />
+        <SegmentSelect label="都道府県" value={filters.prefecture} options={toSegmentOptions(prefectureOptions, segments.prefectures.length ? segments.prefectures : segments.areas)} onChange={(value) => setFilters((current) => ({ ...current, prefecture: value }))} />
+        <SegmentSelect
+          label="開封/回答"
+          value={filters.status}
+          options={["未配信", "配信済み・未開封", "開封済み・未回答", "回答済み"].map((label) => ({ label, count: lineUsers.filter((user) => user.surveyStatus === label).length }))}
+          onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+        />
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="border-b border-slate-200 text-xs text-slate-500">
+            <tr>
+              {["表示名", "友だち追加日", "状態", "年代", "地方", "都道府県", "利用目的", "開封日", "回答日"].map((head) => (
+                <th key={head} className="px-3 py-3 font-bold">{head}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.slice(0, 100).map((user) => {
+              const response = latestResponseByLineUserId.get(user.lineUserId);
+              const answers = response?.answers ?? user.answers;
+
+              return (
+                <tr key={`${user.lineUserId}-${user.id}`}>
+                  <td className="px-3 py-3 font-bold text-commo-ink">{user.displayName}</td>
+                  <td className="px-3 py-3 text-slate-600">{formatDateLabel(user.friendAddedAt)}</td>
+                  <td className="px-3 py-3"><span className="rounded-md bg-commo-soft px-2 py-1 text-xs font-bold text-commo-hover">{user.surveyStatus}</span></td>
+                  <td className="px-3 py-3 text-slate-600">{answers.ageGroup || "-"}</td>
+                  <td className="px-3 py-3 text-slate-600">{answers.region || "-"}</td>
+                  <td className="px-3 py-3 text-slate-600">{answers.prefecture || "-"}</td>
+                  <td className="px-3 py-3 text-slate-600">{answers.purpose || "-"}</td>
+                  <td className="px-3 py-3 text-slate-600">{formatDateLabel(user.surveyOpenedAt)}</td>
+                  <td className="px-3 py-3 text-slate-600">{formatDateLabel(user.surveyAnsweredAt || response?.createdAt || "")}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-slate-500">
+        <span>表示対象 {rows.length.toLocaleString("ja-JP")}人</span>
+        {statusMessage ? <span className="text-rose-600">{statusMessage}</span> : null}
+      </div>
+    </Panel>
+  );
+}
+
+function SurveyBroadcastPanel() {
+  const [responses, setResponses] = useState<AdminSurveyResponse[]>([]);
+  const [lineUsers, setLineUsers] = useState<AdminSurveyLineUser[]>([]);
+  const [segments, setSegments] = useState<AdminSurveySegments>({
+    ageGroups: [],
+    purposes: [],
+    areas: [],
+    prefectures: [],
+    regions: [],
     interests: [],
     usageCounts: [],
     weekdayNeeds: [],
   });
   const [filters, setFilters] = useState({
+    ageGroup: "",
     purpose: "",
-    area: "",
+    prefecture: "",
+    region: "",
     interest: "",
     usageCount: "",
     weekdayNeeds: "",
   });
-  const [message, setMessage] = useState("{name} 様\n\n平日限定のホテルプランをご用意しました。\nご都合のよい日程がありましたら、LINEからお気軽にご確認ください。");
+  const surveyUrl = typeof window === "undefined" ? "/demo" : `${window.location.origin}/demo`;
+  const [message, setMessage] = useState(`{name} 様\n\nホテル利用アンケートにご協力ください。\n${surveyUrl}\n\n回答内容に合わせておすすめプランをご案内します。`);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -517,6 +710,7 @@ function SurveyBroadcastPanel() {
 
         if (!ignore) {
           setResponses(result.responses);
+          setLineUsers(result.lineUsers);
           setSegments(result.segments);
         }
       } catch (cause) {
@@ -537,7 +731,7 @@ function SurveyBroadcastPanel() {
     };
   }, []);
 
-  const targetCount = useMemo(() => countSurveyTargets(responses, filters), [filters, responses]);
+  const targetCount = useMemo(() => countSurveyTargets(responses, lineUsers, filters), [filters, lineUsers, responses]);
 
   async function submitBroadcast(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -548,7 +742,7 @@ function SurveyBroadcastPanel() {
     }
 
     if (targetCount === 0) {
-      setStatusMessage("配信対象のアンケート回答者がいません。");
+      setStatusMessage("配信対象のLINEユーザーがいません。");
       return;
     }
 
@@ -566,14 +760,21 @@ function SurveyBroadcastPanel() {
   }
 
   return (
-    <Panel title="アンケート回答者向け配信" sub="公式LINEの属性ターゲティングではなく、DBに保存したLINEユーザーIDへ直接配信します">
+    <Panel title="アンケートURL配信" sub="条件なしなら保存済みLINEユーザー全員へ、条件ありなら回答属性で絞って配信します">
       <form onSubmit={submitBroadcast} className="space-y-4">
         <div className="grid gap-3 md:grid-cols-5">
+          <SegmentSelect label="年代" value={filters.ageGroup} options={segments.ageGroups} onChange={(value) => setFilters((current) => ({ ...current, ageGroup: value }))} />
           <SegmentSelect label="利用目的" value={filters.purpose} options={segments.purposes} onChange={(value) => setFilters((current) => ({ ...current, purpose: value }))} />
-          <SegmentSelect label="エリア" value={filters.area} options={segments.areas} onChange={(value) => setFilters((current) => ({ ...current, area: value }))} />
+          <SegmentSelect label="地方" value={filters.region} options={segments.regions} onChange={(value) => setFilters((current) => ({ ...current, region: value }))} />
+          <SegmentSelect label="都道府県" value={filters.prefecture} options={segments.prefectures.length ? segments.prefectures : segments.areas} onChange={(value) => setFilters((current) => ({ ...current, prefecture: value }))} />
           <SegmentSelect label="興味関心" value={filters.interest} options={segments.interests} onChange={(value) => setFilters((current) => ({ ...current, interest: value }))} />
           <SegmentSelect label="利用回数" value={filters.usageCount} options={segments.usageCounts} onChange={(value) => setFilters((current) => ({ ...current, usageCount: value }))} />
           <SegmentSelect label="平日ニーズ" value={filters.weekdayNeeds} options={segments.weekdayNeeds} onChange={(value) => setFilters((current) => ({ ...current, weekdayNeeds: value }))} />
+        </div>
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-bold text-slate-500">アンケートページURL</p>
+          <p className="mt-1 break-all text-sm font-bold text-commo-ink">{surveyUrl}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">配信文にこのURLを入れるだけで回答を集められます。LIFFで開いたユーザーは開封状況も記録します。</p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1fr_220px]">
@@ -591,7 +792,7 @@ function SurveyBroadcastPanel() {
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-bold text-slate-500">配信対象</p>
             <p className="mt-2 text-3xl font-bold text-commo-ink">{loading ? "..." : `${targetCount}人`}</p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">アンケート回答済みかつLINEユーザーIDが保存済みの人だけが対象です。</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">条件なしなら友だち全員、条件ありなら回答済みユーザーから絞ります。</p>
           </div>
         </div>
 
@@ -622,11 +823,24 @@ function SegmentSelect({ label, value, options, onChange }: { label: string; val
   );
 }
 
-function countSurveyTargets(responses: AdminSurveyResponse[], filters: { purpose: string; area: string; interest: string; usageCount: string; weekdayNeeds: string }) {
+function countSurveyTargets(responses: AdminSurveyResponse[], lineUsers: AdminSurveyLineUser[], filters: { ageGroup: string; purpose: string; prefecture: string; region: string; interest: string; usageCount: string; weekdayNeeds: string }) {
+  const hasAnswerFilter = Boolean(filters.ageGroup || filters.purpose || filters.prefecture || filters.region || filters.interest || filters.usageCount || filters.weekdayNeeds);
   const targets = new Set<string>();
+
+  if (!hasAnswerFilter) {
+    lineUsers.forEach((user) => {
+      if (user.lineUserId) {
+        targets.add(user.lineUserId);
+      }
+    });
+  }
 
   responses.forEach((response) => {
     if (!response.lineUserId || targets.has(response.lineUserId)) {
+      return;
+    }
+
+    if (filters.ageGroup && response.answers.ageGroup !== filters.ageGroup) {
       return;
     }
 
@@ -634,7 +848,11 @@ function countSurveyTargets(responses: AdminSurveyResponse[], filters: { purpose
       return;
     }
 
-    if (filters.area && response.answers.area !== filters.area) {
+    if (filters.prefecture && response.answers.prefecture !== filters.prefecture) {
+      return;
+    }
+
+    if (filters.region && response.answers.region !== filters.region) {
       return;
     }
 
@@ -1177,6 +1395,12 @@ function normalizeLabel(value: string) {
 
 function uniqueTags(tags: string[]) {
   return [...new Set(tags.filter(Boolean))];
+}
+
+function toSegmentOptions(labels: string[], counts: { label: string; count: number }[]) {
+  const countByLabel = new Map(counts.map((item) => [item.label, item.count]));
+
+  return labels.map((label) => ({ label, count: countByLabel.get(label) ?? 0 }));
 }
 
 function daysSinceClient(value: string) {

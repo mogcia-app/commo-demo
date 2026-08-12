@@ -71,8 +71,11 @@ export type AdminSurveyResponse = {
   lineDisplayName: string;
   name: string;
   answers: {
+    ageGroup: string;
     purpose: string;
     area: string;
+    prefecture: string;
+    region: string;
     interests: string[];
     usageCount: string;
     weekdayNeeds: string;
@@ -81,9 +84,26 @@ export type AdminSurveyResponse = {
   createdAt: string;
 };
 
+export type AdminSurveyLineUser = {
+  id: string;
+  lineUserId: string;
+  displayName: string;
+  pictureUrl: string;
+  friendAddedAt: string;
+  surveyOpenedAt: string;
+  surveyAnsweredAt: string;
+  lastMessageAt: string;
+  latestSurveyBroadcastId: string;
+  surveyStatus: string;
+  answers: AdminSurveyResponse["answers"];
+};
+
 export type AdminSurveySegments = {
+  ageGroups: { label: string; count: number }[];
   purposes: { label: string; count: number }[];
   areas: { label: string; count: number }[];
+  prefectures: { label: string; count: number }[];
+  regions: { label: string; count: number }[];
   interests: { label: string; count: number }[];
   usageCounts: { label: string; count: number }[];
   weekdayNeeds: { label: string; count: number }[];
@@ -287,7 +307,19 @@ export async function fetchAdminSurveyResponses() {
     throw new Error(body.error ?? "アンケート回答の取得に失敗しました。");
   }
 
-  return (await response.json()) as { responses: AdminSurveyResponse[]; segments: AdminSurveySegments; recipientCount: number };
+  return (await response.json()) as {
+    responses: AdminSurveyResponse[];
+    lineUsers: AdminSurveyLineUser[];
+    segments: AdminSurveySegments;
+    recipientCount: number;
+    delivery: {
+      latestBroadcastId: string;
+      targetCount: number;
+      unopenedCount: number;
+      openedNotAnsweredCount: number;
+      answeredCount: number;
+    };
+  };
 }
 
 export async function sendAdminSurveyBroadcast(input: {
@@ -295,6 +327,9 @@ export async function sendAdminSurveyBroadcast(input: {
   filters: {
     purpose?: string;
     area?: string;
+    prefecture?: string;
+    region?: string;
+    ageGroup?: string;
     interest?: string;
     usageCount?: string;
     weekdayNeeds?: string;

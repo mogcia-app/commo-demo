@@ -1,20 +1,20 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useLineProfile } from "@/hooks/use-line-profile";
+import { ageGroupOptions, hotelPurposeOptions, prefectureOptions } from "@/lib/survey-taxonomy";
 
 type SurveyAnswer = {
   name: string;
+  ageGroup: string;
   purpose: string;
-  area: string;
+  prefecture: string;
   interests: string[];
   usageCount: string;
   weekdayNeeds: string;
   comment: string;
 };
 
-const purposeOptions = ["観光・レジャー", "ビジネス・出張", "記念日・誕生日", "家族旅行", "ワーケーション", "レストラン・日帰り利用"];
-const areaOptions = ["新宿・渋谷", "銀座・東京駅", "舞浜・湾岸", "横浜・みなとみらい", "箱根・熱海", "その他"];
 const interestOptions = ["朝食付きプラン", "スパ・サウナ", "レイトチェックアウト", "ファミリー向け客室", "記念日特典", "平日限定割引"];
 const usageCountOptions = ["初めて", "年1回程度", "年2〜3回", "年4回以上", "法人・定期利用"];
 const weekdayNeedsOptions = ["平日に泊まりたい", "平日の日帰り利用に興味あり", "平日限定プランなら検討したい", "週末・祝日が中心", "まだ決まっていない"];
@@ -23,8 +23,9 @@ export function SurveyForm() {
   const { profile } = useLineProfile({ loginRedirectPath: "/demo" });
   const [answer, setAnswer] = useState<SurveyAnswer>({
     name: "",
+    ageGroup: "",
     purpose: "",
-    area: "",
+    prefecture: "",
     interests: [],
     usageCount: "",
     weekdayNeeds: "",
@@ -35,11 +36,28 @@ export function SurveyForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedResponseId, setSavedResponseId] = useState("");
 
-  const answeredRequiredCount = useMemo(() => {
-    return [answer.name, answer.purpose, answer.area, answer.usageCount, answer.weekdayNeeds].filter(Boolean).length;
-  }, [answer.area, answer.name, answer.purpose, answer.usageCount, answer.weekdayNeeds]);
+  useEffect(() => {
+    if (!profile?.userId) {
+      return;
+    }
 
-  const progress = Math.round((answeredRequiredCount / 5) * 100);
+    void fetch("/api/survey-open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lineUserId: profile.userId,
+        lineDisplayName: profile.displayName,
+        linePictureUrl: profile.pictureUrl,
+        source: "liff",
+      }),
+    }).catch(() => undefined);
+  }, [profile?.displayName, profile?.pictureUrl, profile?.userId]);
+
+  const answeredRequiredCount = useMemo(() => {
+    return [answer.name, answer.ageGroup, answer.purpose, answer.prefecture, answer.usageCount, answer.weekdayNeeds].filter(Boolean).length;
+  }, [answer.ageGroup, answer.name, answer.prefecture, answer.purpose, answer.usageCount, answer.weekdayNeeds]);
+
+  const progress = Math.round((answeredRequiredCount / 6) * 100);
 
   function updateAnswer<K extends keyof SurveyAnswer>(key: K, value: SurveyAnswer[K]) {
     setAnswer((current) => ({ ...current, [key]: value }));
@@ -61,7 +79,7 @@ export function SurveyForm() {
   async function submitSurvey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!answer.name.trim() || !answer.purpose || !answer.area || !answer.usageCount || !answer.weekdayNeeds) {
+    if (!answer.name.trim() || !answer.ageGroup || !answer.purpose || !answer.prefecture || !answer.usageCount || !answer.weekdayNeeds) {
       setError("必須項目をすべて選択してください。");
       return;
     }
@@ -77,6 +95,7 @@ export function SurveyForm() {
           ...answer,
           name: answer.name.trim(),
           comment: answer.comment.trim(),
+          area: answer.prefecture,
           lineUserId: profile?.userId,
           lineDisplayName: profile?.displayName,
           linePictureUrl: profile?.pictureUrl,
@@ -108,8 +127,9 @@ export function SurveyForm() {
         {savedResponseId ? <p className="mt-2 text-xs font-semibold text-slate-500">回答ID: {savedResponseId}</p> : null}
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-3">
           <SummaryItem label="お名前" value={answer.name} />
+          <SummaryItem label="年代" value={answer.ageGroup} />
           <SummaryItem label="利用目的" value={answer.purpose} />
-          <SummaryItem label="エリア" value={answer.area} />
+          <SummaryItem label="お住まい" value={answer.prefecture} />
           <SummaryItem label="利用回数" value={answer.usageCount} />
           <SummaryItem label="平日ニーズ" value={answer.weekdayNeeds} />
         </dl>
@@ -132,7 +152,7 @@ export function SurveyForm() {
           <h2 className="mt-1 text-2xl font-bold text-commo-ink">ホテル利用アンケート</h2>
         </div>
         <div className="min-w-32 text-right">
-          <p className="text-xs font-semibold text-slate-500">必須回答 {answeredRequiredCount}/5</p>
+          <p className="text-xs font-semibold text-slate-500">必須回答 {answeredRequiredCount}/6</p>
           <div className="mt-2 h-2 rounded-full bg-slate-100">
             <div className="h-2 rounded-full bg-commo-main transition-all" style={{ width: `${progress}%` }} />
           </div>
@@ -151,13 +171,18 @@ export function SurveyForm() {
         </label>
 
         <fieldset>
-          <legend className="text-base font-bold text-commo-ink">ホテルの主な利用目的 <span className="text-rose-500">*</span></legend>
-          <RadioGrid name="purpose" options={purposeOptions} value={answer.purpose} onChange={(value) => updateAnswer("purpose", value)} />
+          <legend className="text-base font-bold text-commo-ink">年代 <span className="text-rose-500">*</span></legend>
+          <SelectField value={answer.ageGroup} options={ageGroupOptions} onChange={(value) => updateAnswer("ageGroup", value)} />
         </fieldset>
 
         <fieldset>
-          <legend className="text-base font-bold text-commo-ink">よく利用する・検討したいエリア <span className="text-rose-500">*</span></legend>
-          <SelectField value={answer.area} options={areaOptions} onChange={(value) => updateAnswer("area", value)} />
+          <legend className="text-base font-bold text-commo-ink">ホテルの主な利用目的 <span className="text-rose-500">*</span></legend>
+          <RadioGrid name="purpose" options={hotelPurposeOptions} value={answer.purpose} onChange={(value) => updateAnswer("purpose", value)} />
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-base font-bold text-commo-ink">どこから来ましたか？ <span className="text-rose-500">*</span></legend>
+          <SelectField value={answer.prefecture} options={prefectureOptions} onChange={(value) => updateAnswer("prefecture", value)} />
         </fieldset>
 
         <fieldset>

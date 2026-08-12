@@ -8,6 +8,9 @@ type SurveyBroadcastRequest = {
   filters?: {
     purpose?: string;
     area?: string;
+    prefecture?: string;
+    region?: string;
+    ageGroup?: string;
     interest?: string;
     usageCount?: string;
     weekdayNeeds?: string;
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
     const recipients = await getSurveyRecipients(filters);
 
     if (!recipients.length) {
-      return NextResponse.json({ error: "配信対象のアンケート回答者がいません。" }, { status: 400 });
+      return NextResponse.json({ error: "配信対象のLINEユーザーがいません。" }, { status: 400 });
     }
 
     const broadcastRef = getAdminDb().collection("surveyBroadcasts").doc();
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
         getAdminDb().collection("lineUsers").doc(toSafeDocId(recipient.lineUserId)).set(
           {
             lastMessageAt: now,
+            latestSurveyBroadcastId: broadcastRef.id,
+            latestSurveyStatus: "sent",
             lastActionLabel: "アンケート回答者向け配信",
             updatedAt: now,
           },
@@ -94,13 +99,35 @@ export async function POST(request: Request) {
 }
 
 async function getSurveyRecipients(filters: Required<SurveyBroadcastRequest>["filters"]) {
-  const snapshot = await getAdminDb().collection("surveyResponses").orderBy("createdAt", "desc").limit(1000).get();
+  const db = getAdminDb();
+  const [surveySnapshot, lineUsersSnapshot] = await Promise.all([
+    db.collection("surveyResponses").orderBy("createdAt", "desc").limit(1000).get(),
+    db.collection("lineUsers").limit(1000).get().catch(() => null),
+  ]);
+  const latestResponseByLineUserId = new Map<string, { name: string; lineDisplayName: string; answers: Record<string, unknown> }>();
   const recipients = new Map<string, { lineUserId: string; name: string; lineDisplayName: string; answers: Record<string, unknown> }>();
 
-  snapshot.docs.forEach((doc) => {
+  surveySnapshot.docs.forEach((doc) => {
     const data = doc.data();
     const lineUserId = typeof data.lineUserId === "string" ? data.lineUserId.trim() : "";
     const answers = isRecord(data.answers) ? data.answers : {};
+
+    if (!lineUserId || latestResponseByLineUserId.has(lineUserId)) {
+      return;
+    }
+
+    latestResponseByLineUserId.set(lineUserId, {
+      name: typeof data.name === "string" ? data.name : "",
+      lineDisplayName: typeof data.lineDisplayName === "string" ? data.lineDisplayName : "",
+      answers,
+    });
+  });
+
+  lineUsersSnapshot?.docs.forEach((doc) => {
+    const data = doc.data();
+    const lineUserId = typeof data.lineUserId === "string" ? data.lineUserId.trim() : doc.id;
+    const latestResponse = latestResponseByLineUserId.get(lineUserId);
+    const answers = latestResponse?.answers ?? (isRecord(data.surveyAnswers) ? data.surveyAnswers : {});
 
     if (!lineUserId || recipients.has(lineUserId) || !matchesFilters(answers, filters)) {
       return;
@@ -108,9 +135,20 @@ async function getSurveyRecipients(filters: Required<SurveyBroadcastRequest>["fi
 
     recipients.set(lineUserId, {
       lineUserId,
-      name: typeof data.name === "string" ? data.name : "",
-      lineDisplayName: typeof data.lineDisplayName === "string" ? data.lineDisplayName : "",
+      name: latestResponse?.name || (typeof data.customerName === "string" ? data.customerName : ""),
+      lineDisplayName: latestResponse?.lineDisplayName || (typeof data.displayName === "string" ? data.displayName : ""),
       answers,
+    });
+  });
+
+  latestResponseByLineUserId.forEach((response, lineUserId) => {
+    if (recipients.has(lineUserId) || !matchesFilters(response.answers, filters)) {
+      return;
+    }
+
+    recipients.set(lineUserId, {
+      lineUserId,
+      ...response,
     });
   });
 
@@ -122,7 +160,21 @@ function matchesFilters(answers: Record<string, unknown>, filters: Required<Surv
     return false;
   }
 
-  if (filters.area && answers.area !== filters.area) {
+  const prefecture = typeof answers.prefecture === "string" ? answers.prefecture : typeof answers.area === "string" ? answers.area : "";
+
+  if (filters.area && prefecture !== filters.area) {
+    return false;
+  }
+
+  if (filters.prefecture && prefecture !== filters.prefecture) {
+    return false;
+  }
+
+  if (filters.region && answers.region !== filters.region) {
+    return false;
+  }
+
+  if (filters.ageGroup && answers.ageGroup !== filters.ageGroup) {
     return false;
   }
 
@@ -146,6 +198,9 @@ function normalizeFilters(filters: SurveyBroadcastRequest["filters"]) {
   return {
     purpose: filters?.purpose?.trim() ?? "",
     area: filters?.area?.trim() ?? "",
+    prefecture: filters?.prefecture?.trim() ?? "",
+    region: filters?.region?.trim() ?? "",
+    ageGroup: filters?.ageGroup?.trim() ?? "",
     interest: filters?.interest?.trim() ?? "",
     usageCount: filters?.usageCount?.trim() ?? "",
     weekdayNeeds: filters?.weekdayNeeds?.trim() ?? "",

@@ -1,14 +1,17 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
+import { getRegionByPrefecture } from "@/lib/survey-taxonomy";
 
 type SurveyResponseRequest = {
   name?: string;
   lineUserId?: string;
   lineDisplayName?: string;
   linePictureUrl?: string;
+  ageGroup?: string;
   purpose?: string;
   area?: string;
+  prefecture?: string;
   interests?: string[];
   usageCount?: string;
   weekdayNeeds?: string;
@@ -23,8 +26,10 @@ export async function POST(request: Request) {
     const lineUserId = body.lineUserId?.trim() ?? "";
     const lineDisplayName = body.lineDisplayName?.trim() ?? "";
     const linePictureUrl = body.linePictureUrl?.trim() ?? "";
+    const ageGroup = body.ageGroup?.trim() ?? "";
     const purpose = body.purpose?.trim() ?? "";
-    const area = body.area?.trim() ?? "";
+    const prefecture = body.prefecture?.trim() || body.area?.trim() || "";
+    const region = getRegionByPrefecture(prefecture);
     const interests = normalizeStringArray(body.interests);
     const usageCount = body.usageCount?.trim() ?? "";
     const weekdayNeeds = body.weekdayNeeds?.trim() ?? "";
@@ -35,7 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "お名前を入力してください。" }, { status: 400 });
     }
 
-    if (!purpose || !area || !usageCount || !weekdayNeeds) {
+    if (!ageGroup || !purpose || !prefecture || !usageCount || !weekdayNeeds) {
       return NextResponse.json({ error: "必須項目をすべて選択してください。" }, { status: 400 });
     }
 
@@ -44,8 +49,11 @@ export async function POST(request: Request) {
     const surveyResponseRef = db.collection("surveyResponses").doc();
     const analyticsEventRef = db.collection("analyticsEvents").doc();
     const surveyAnswers = {
+      ageGroup,
       purpose,
-      area,
+      prefecture,
+      area: prefecture,
+      region,
       interests,
       usageCount,
       weekdayNeeds,
@@ -76,7 +84,8 @@ export async function POST(request: Request) {
           metadata: {
             surveyResponseId: surveyResponseRef.id,
             purpose,
-            area,
+            prefecture,
+            region,
             interests,
             usageCount,
             weekdayNeeds,
@@ -124,7 +133,8 @@ export async function POST(request: Request) {
           surveyAnsweredAt: now,
           surveyAnswers,
           latestSurveyResponseId: surveyResponseRef.id,
-          tags: buildSurveyTags({ purpose, area, interests, usageCount, weekdayNeeds }),
+          latestSurveyStatus: "answered",
+          tags: buildSurveyTags({ ageGroup, purpose, prefecture, region, interests, usageCount, weekdayNeeds }),
           lastActionAt: now,
           lastActionLabel: "アンケートに回答",
           reactionCount: FieldValue.increment(1),
@@ -144,8 +154,10 @@ export async function POST(request: Request) {
         couponId: "",
         metadata: {
           surveyResponseId: surveyResponseRef.id,
+          ageGroup,
           purpose,
-          area,
+          prefecture,
+          region,
           interests,
           usageCount,
           weekdayNeeds,
@@ -178,8 +190,8 @@ function normalizeStringArray(value: unknown) {
   return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean).slice(0, 20);
 }
 
-function buildSurveyTags(input: { purpose: string; area: string; interests: string[]; usageCount: string; weekdayNeeds: string }) {
-  return [...new Set([`${input.purpose}関心`, `${input.area}エリア`, input.usageCount, input.weekdayNeeds, ...input.interests])];
+function buildSurveyTags(input: { ageGroup: string; purpose: string; prefecture: string; region: string; interests: string[]; usageCount: string; weekdayNeeds: string }) {
+  return [...new Set([input.ageGroup, `${input.purpose}関心`, input.prefecture, input.region ? `${input.region}エリア` : "", input.usageCount, input.weekdayNeeds, ...input.interests].filter(Boolean))];
 }
 
 function toSafeDocId(value: string) {
