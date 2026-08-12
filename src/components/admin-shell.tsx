@@ -47,14 +47,15 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-commo-ink">
+    <main className="min-h-screen bg-transparent text-commo-ink">
       <div className="min-h-screen w-full">
-        <aside className="border-b border-slate-200 bg-white px-4 py-4 lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
+        <aside className="border-b border-commo-line bg-white/90 px-4 py-4 shadow-sm backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-64 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:px-5 lg:py-6">
           <div>
-            <Link href="/admin" className="text-2xl font-bold tracking-normal text-commo-ink">
-              commo<span className="text-commo-main">.</span>
+            <Link href="/admin" className="inline-flex items-center gap-2 text-2xl font-bold tracking-normal text-commo-ink">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-commo-blush text-commo-hover shadow-sm">c</span>
+              <span>commo<span className="text-commo-main">.</span></span>
             </Link>
-            <p className="mt-1 text-xs font-semibold text-slate-500">LINE Customer Marketing Platform</p>
+            <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">LINE Customer Marketing Platform</p>
           </div>
 
           <nav className="mt-5 grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-1">
@@ -62,8 +63,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
               href="/admin"
               className={`rounded-md border px-3 py-3 transition ${
                 pathname === "/admin"
-                  ? "border-commo-main bg-commo-soft text-commo-hover"
-                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+                  ? "border-commo-main bg-commo-soft text-commo-hover shadow-sm"
+                  : "border-transparent text-slate-600 hover:border-commo-line hover:bg-commo-blush"
               }`}
             >
               <span className="block text-sm font-bold">ホーム</span>
@@ -80,8 +81,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
                   href={href}
                   className={`rounded-md border px-3 py-3 transition ${
                     active
-                      ? "border-commo-main bg-commo-soft text-commo-hover"
-                      : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+                      ? "border-commo-main bg-commo-soft text-commo-hover shadow-sm"
+                      : "border-transparent text-slate-600 hover:border-commo-line hover:bg-commo-blush"
                   }`}
                 >
                   <span className="block text-sm font-bold">{item.label}</span>
@@ -90,7 +91,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             })}
           </nav>
 
-          <div className="mt-5 rounded-md bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+          <div className="mt-5 rounded-md border border-commo-line bg-commo-sky p-3 text-xs font-semibold text-slate-500">
             <p>ログイン中</p>
             <p className="mt-1 truncate text-slate-700">{user.email ?? "admin"}</p>
           </div>

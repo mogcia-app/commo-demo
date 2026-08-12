@@ -96,28 +96,31 @@ export function AdminDashboard() {
 
   return (
     <AdminShell>
-      <section className="mb-6 rounded-md border border-commo-main bg-commo-main p-6 text-white shadow-sm">
+      <section className="mb-6 overflow-hidden rounded-md border border-commo-line bg-white text-commo-ink shadow-pretty">
+        <div className="h-2 bg-gradient-to-r from-[#FFB8CA] via-[#C8A7F0] to-[#A8E7CF]" />
+        <div className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
-            <p className="text-sm font-bold text-white/75">LINE運用AIエージェント</p>
-            <h1 className="mt-2 text-3xl font-bold leading-tight">アンケート分類から配信・分析・改善まで自動で回す司令室</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/80">
+            <p className="text-sm font-bold text-commo-hover">commo. Marketing Home</p>
+            <h1 className="mt-2 text-3xl font-bold leading-tight">顧客を知って、ぴったりの施策を届ける</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
               AIが毎週LINE内の反応を読み取り、顧客分類、配信内容、予約日時、効果測定、次回改善まで実行します。予約・空き枠・プラン情報は、配信判断の補助データとして扱います。
             </p>
           </div>
-          <div className="grid min-w-60 gap-2 rounded-md border border-white/20 bg-white/10 p-4">
+          <div className="grid min-w-60 gap-2 rounded-md border border-commo-line bg-commo-blush p-4">
             <StatusRow label="自動運用" value="ON" />
             <StatusRow label="次回週次分析" value="月曜 09:00" />
             <StatusRow label="配信ガードレール" value="有効" />
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link href="/admin/line/ai-suggestions" className="rounded-md bg-white px-4 py-2 text-sm font-bold text-commo-hover transition hover:bg-commo-soft">
+          <Link href="/admin/line/ai-suggestions" className="rounded-md bg-commo-main px-4 py-2 text-sm font-bold text-white transition hover:bg-commo-hover">
             AI自動運用を見る
           </Link>
-          <Link href="/admin/line/broadcasts" className="rounded-md border border-white/30 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10">
+          <Link href="/admin/line/broadcasts" className="rounded-md border border-commo-line bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-commo-main">
             配信予定を見る
           </Link>
+        </div>
         </div>
       </section>
 
@@ -142,7 +145,7 @@ export function AdminDashboard() {
               ["5. 効果測定", "クリック率、未反応、ブロック率を評価"],
               ["6. 改善", "翌週の対象、文面、頻度へ反映"],
             ].map(([title, body]) => (
-              <article key={title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <article key={title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
                 <h3 className="font-bold text-commo-ink">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
               </article>
@@ -158,7 +161,7 @@ export function AdminDashboard() {
               ["金曜 10:00", "アンケート未回答", "1分アンケート再送", "低"],
               ["翌週 火曜 11:00", "90日反応なし", "受信希望確認 + 頻度抑制", "中"],
             ].map(([time, segment, theme, risk]) => (
-              <div key={`${time}-${segment}`} className="rounded-md border border-slate-200 bg-white p-3">
+              <div key={`${time}-${segment}`} className="rounded-md border border-commo-line bg-white p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold text-commo-hover">{time}</p>
@@ -213,8 +216,9 @@ export function AdminDashboard() {
 
 function Panel({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 border-b border-slate-100 pb-3">
+    <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-sm">
+      <div className="mb-4 border-b border-commo-line pb-3">
+        <div className="mb-2 h-1.5 w-10 rounded-md bg-gradient-to-r from-[#FFB8CA] to-[#A8E7CF]" />
         <h2 className="text-lg font-bold text-commo-ink">{title}</h2>
         <p className="mt-1 text-sm text-slate-500">{sub}</p>
       </div>
@@ -225,8 +229,9 @@ function Panel({ title, sub, children }: { title: string; sub: string; children:
 
 function MetricCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <article className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-semibold text-slate-500">{label}</p>
+    <article className="rounded-md border border-commo-line bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-pretty">
+      <div className="mb-3 h-1.5 w-12 rounded-md bg-gradient-to-r from-[#FFB8CA] to-[#A8E7CF]" />
+      <p className="text-sm font-bold text-slate-500">{label}</p>
       <p className="mt-3 text-3xl font-bold text-commo-ink">{value}</p>
       <p className="mt-2 min-h-8 text-xs font-semibold leading-4 text-slate-400">{sub}</p>
     </article>
@@ -235,7 +240,7 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub: 
 
 function ActionCard({ title, body, href, action }: { title: string; body: string; href: string; action: string }) {
   return (
-    <article className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="rounded-md border border-commo-line bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-pretty">
       <h2 className="text-lg font-bold text-commo-ink">{title}</h2>
       <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">{body}</p>
       <Link href={href} className="mt-4 inline-flex rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover">

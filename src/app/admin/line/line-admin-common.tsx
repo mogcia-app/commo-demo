@@ -224,7 +224,9 @@ function LineHeader({
   loading: boolean;
 }) {
   return (
-    <div className="mb-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="mb-5 overflow-hidden rounded-md border border-commo-line bg-white shadow-pretty">
+      <div className="h-2 bg-gradient-to-r from-[#FFB8CA] via-[#C8A7F0] to-[#A8E7CF]" />
+      <div className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <p className="text-sm font-bold text-commo-hover">Customer Marketing / {template.dashboardLabels.industryLabel}</p>
@@ -243,6 +245,7 @@ function LineHeader({
         <MiniInfo label="データ入口" value={overview.botInfo?.displayName ?? "commo公式LINE"} sub="友だち追加・アンケート・行動イベント" />
         <MiniInfo label="顧客理解" value={loading ? "確認中" : "更新中"} sub="回答と行動から属性・タグを生成" />
         <MiniInfo label="施策改善" value={`${overview.kpis.broadcastClickRate}%`} sub="反応結果を次回配信へ反映" />
+      </div>
       </div>
     </div>
   );
@@ -387,7 +390,7 @@ function DashboardView({ template, basePath, overview }: { template: IndustryLin
         <Panel title="今月のおすすめ施策" sub="顧客像とLINE内反応から提案">
           <div className="grid gap-3">
             {template.dashboardLabels.recommendedActions.map((action) => (
-              <article key={action.title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <article key={action.title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
                 <h3 className="font-bold text-commo-ink">{action.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{action.body}</p>
                 <p className="mt-3 text-xs font-bold text-commo-hover">対象候補：{action.targetLabel} / 146人</p>
@@ -413,7 +416,7 @@ function CustomerMarketingFlow({ basePath }: { basePath: string }) {
   ];
 
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-pretty">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-commo-hover">commo.の循環</p>
@@ -425,7 +428,7 @@ function CustomerMarketingFlow({ basePath }: { basePath: string }) {
       </div>
       <div className="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
         {steps.map(([title, body], index) => (
-          <article key={title} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+          <article key={title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-3 shadow-sm">
             <p className="text-xs font-bold text-commo-hover">STEP {index + 1}</p>
             <h3 className="mt-1 text-sm font-bold text-commo-ink">{title}</h3>
             <p className="mt-2 text-xs leading-5 text-slate-500">{body}</p>
@@ -438,7 +441,7 @@ function CustomerMarketingFlow({ basePath }: { basePath: string }) {
 
 function SegmentCandidate({ label, count, href }: { label: string; count: number; href: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-commo-line bg-gradient-to-r from-white to-commo-sky px-3 py-3 shadow-sm">
       <div>
         <p className="text-sm font-bold text-commo-ink">{label}</p>
         <p className="mt-1 text-xs font-semibold text-slate-500">対象候補 {count.toLocaleString("ja-JP")}人</p>
@@ -529,7 +532,7 @@ function UserDetailView({ template, userId, overview, basePath }: { template: In
 
   return (
     <div className="space-y-4">
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-pretty">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-bold text-commo-hover">LINE顧客カルテ</p>
@@ -584,7 +587,7 @@ function SegmentsView({ template }: { template: IndustryLineTemplate }) {
             <StaticSelect label="最終反応" value="90日以内" />
             <StaticSelect label="行動シグナル" value="クリックあり" />
           </div>
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
             <p className="text-xs font-bold text-slate-500">対象ユーザー</p>
             <p className="mt-2 text-3xl font-bold text-commo-ink">348人</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">大阪・ビジネス・リピーターとして保存できます。</p>
@@ -607,7 +610,7 @@ function SegmentsView({ template }: { template: IndustryLineTemplate }) {
 function SurveysView({ template, basePath }: { template: IndustryLineTemplate; basePath: string }) {
   return (
     <div className="space-y-4">
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-pretty">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-bold text-commo-hover">Data Collection</p>
@@ -627,7 +630,7 @@ function SurveysView({ template, basePath }: { template: IndustryLineTemplate; b
         <Panel key={survey.title} title={survey.title} sub="commo Miniで作成する初回アンケートの設問例">
           <div className="grid gap-3 md:grid-cols-3">
             {survey.questions.map((question, index) => (
-              <article key={question.text} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <article key={question.text} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
                 <p className="text-xs font-bold text-commo-hover">Q{index + 1}</p>
                 <h3 className="mt-1 font-bold text-commo-ink">{question.text}</h3>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -647,7 +650,7 @@ function SurveysView({ template, basePath }: { template: IndustryLineTemplate; b
 function BroadcastsView({ template, overview }: { template: IndustryLineTemplate; overview: AdminLineOverview }) {
   return (
     <div className="space-y-5">
-      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-pretty">
         <p className="text-sm font-bold text-commo-hover">Segment Delivery</p>
         <h2 className="mt-1 text-xl font-bold text-commo-ink">顧客像に合わせてLINE配信する</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
@@ -790,7 +793,7 @@ function HotelSurveyResponsesPanel() {
         <MetricCard label="回答済み" value={loading ? "..." : `${delivery.answeredCount}人`} sub="回答保存済み" />
       </div>
 
-      <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="mt-4 rounded-md border border-commo-line bg-gradient-to-r from-white to-commo-sky px-4 py-3">
         <p className="text-xs font-bold text-slate-500">配信用アンケートURL</p>
         <p className="mt-1 break-all text-sm font-bold text-commo-ink">{surveyUrl}</p>
       </div>
@@ -949,7 +952,7 @@ function SurveyBroadcastPanel() {
           <SegmentSelect label="利用回数" value={filters.usageCount} options={segments.usageCounts} onChange={(value) => setFilters((current) => ({ ...current, usageCount: value }))} />
           <SegmentSelect label="平日ニーズ" value={filters.weekdayNeeds} options={segments.weekdayNeeds} onChange={(value) => setFilters((current) => ({ ...current, weekdayNeeds: value }))} />
         </div>
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="rounded-md border border-commo-line bg-gradient-to-r from-white to-commo-sky px-4 py-3">
           <p className="text-xs font-bold text-slate-500">アンケートページURL</p>
           <p className="mt-1 break-all text-sm font-bold text-commo-ink">{surveyUrl}</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">配信文にこのURLを入れるだけで回答を集められます。LIFFで開いたユーザーは開封状況も記録します。</p>
@@ -967,7 +970,7 @@ function SurveyBroadcastPanel() {
             <p className="mt-2 text-xs font-semibold text-slate-500">{"{name}"} を入れるとアンケートのお名前に置換します。</p>
           </label>
 
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
             <p className="text-xs font-bold text-slate-500">配信対象</p>
             <p className="mt-2 text-3xl font-bold text-commo-ink">{loading ? "..." : `${targetCount}人`}</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">LINE配信予定 {loading ? "..." : `${targetCount}通`}。条件ありなら回答済みユーザーから絞ります。</p>
@@ -1072,12 +1075,12 @@ function AnalyticsView({ template }: { template: IndustryLineTemplate }) {
       </Panel>
       <Panel title="顧客分析" sub="地域から目的へドリルダウンするイメージ">
         <div className="grid gap-3 sm:grid-cols-2">
-          <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <article className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
             <p className="text-xs font-bold text-commo-hover">地域</p>
             <h3 className="mt-1 text-lg font-bold text-commo-ink">九州 42%</h3>
             <p className="mt-2 text-sm text-slate-500">福岡・熊本・鹿児島が中心</p>
           </article>
-          <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <article className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
             <p className="text-xs font-bold text-commo-hover">九州内訳</p>
             <h3 className="mt-1 text-lg font-bold text-commo-ink">熊本 × 観光</h3>
             <p className="mt-2 text-sm text-slate-500">対象 184人 / 配信候補</p>
@@ -1146,7 +1149,7 @@ function AiSuggestionsView({ template, overview }: { template: IndustryLineTempl
       <Panel title="おすすめ施策" sub="AIがセグメント、理由、配信テーマ、メッセージを提案します">
         <div className="grid gap-3 xl:grid-cols-3">
           {weeklyPlans.map((plan) => (
-            <article key={plan.title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <article key={plan.title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-commo-hover">{plan.scheduledAt}</p>
@@ -1183,7 +1186,7 @@ function AiSuggestionsView({ template, overview }: { template: IndustryLineTempl
         <Panel title="AIの判断理由" sub="売上や来店を断定せず、LINE内データを根拠にします">
           <div className="space-y-3">
             {[...template.aiSuggestionExamples, ...template.dashboardLabels.recommendedActions.map((item) => item.body)].map((body, index) => (
-              <div key={`${body}-${index}`} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+              <div key={`${body}-${index}`} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-sky p-3 shadow-sm">
                 <p className="text-xs font-bold text-commo-hover">根拠 {index + 1}</p>
                 <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
               </div>
@@ -1218,7 +1221,7 @@ function AiSuggestionsView({ template, overview }: { template: IndustryLineTempl
             ["月曜 09:18", "予約作成", `${weeklyPlans.length}件の配信予約を作成`],
             ["翌週 月曜", "改善反映", "クリック・ブロック・未反応を次回施策へ反映"],
           ].map(([time, title, body]) => (
-            <article key={title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <article key={title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
               <p className="text-xs font-bold text-slate-400">{time}</p>
               <h3 className="mt-2 font-bold text-commo-ink">{title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
@@ -1241,7 +1244,7 @@ function FriendActionPlansPanel({ template, overview, compact = false }: { templ
           const targetCount = countPlanTargets(users, plan);
 
           return (
-            <article key={plan.friendType} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <article key={plan.friendType} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-commo-hover">{plan.recommendedTiming}</p>
@@ -1400,7 +1403,7 @@ function TemplateList({ title, sub, items }: { title: string; sub: string; items
     <Panel title={title} sub={sub}>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
-          <article key={item.title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+          <article key={item.title} className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
             <h3 className="font-bold text-commo-ink">{item.title}</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p>
             {item.note ? <p className="mt-3 rounded-md bg-white p-3 text-xs leading-5 text-slate-500">{item.note}</p> : null}
@@ -1430,8 +1433,11 @@ function FilterPanel({ labels }: { labels: string[] }) {
 }
 
 function MetricCard({ label, value, sub }: { label: string; value: string; sub: string }) {
+  const tone = getMetricTone(label);
+
   return (
-    <article className="rounded-md border border-slate-200 bg-white p-4 shadow-sm transition hover:border-commo-main">
+    <article className={`rounded-md border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-pretty ${tone.border}`}>
+      <div className={`mb-3 h-1.5 w-12 rounded-md ${tone.accent}`} />
       <p className="text-xs font-bold text-slate-500">{label}</p>
       <p className="mt-3 text-2xl font-bold leading-none text-commo-ink">{value}</p>
       <p className="mt-3 min-h-8 text-xs font-semibold leading-4 text-slate-400">{sub}</p>
@@ -1439,10 +1445,31 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub: 
   );
 }
 
+function getMetricTone(label: string) {
+  if (label.includes("回答") || label.includes("顧客")) {
+    return { border: "border-[#F4C8D5]", accent: "bg-[#FFB8CA]" };
+  }
+
+  if (label.includes("配信") || label.includes("クリック")) {
+    return { border: "border-[#C6E6FF]", accent: "bg-[#8BC7FF]" };
+  }
+
+  if (label.includes("予約") || label.includes("転換")) {
+    return { border: "border-[#F2DE9B]", accent: "bg-[#F4C95D]" };
+  }
+
+  if (label.includes("休眠") || label.includes("ブロック")) {
+    return { border: "border-[#D7DDE8]", accent: "bg-[#94A3B8]" };
+  }
+
+  return { border: "border-commo-line", accent: "bg-[#A8E7CF]" };
+}
+
 function Panel({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 border-b border-slate-100 pb-3">
+    <section className="rounded-md border border-commo-line bg-white/95 p-5 shadow-sm">
+      <div className="mb-4 border-b border-commo-line pb-3">
+        <div className="mb-2 h-1.5 w-10 rounded-md bg-gradient-to-r from-[#FFB8CA] to-[#A8E7CF]" />
         <h2 className="text-lg font-bold text-commo-ink">{title}</h2>
         <p className="mt-1 text-sm text-slate-500">{sub}</p>
       </div>
@@ -1460,11 +1487,11 @@ function BarChart({ rows, primaryLabel, secondaryLabel }: { rows: { label: strin
         <div key={row.label} className="grid grid-cols-[3rem_1fr] items-center gap-3 text-sm">
           <span className="font-bold text-slate-500">{row.label}</span>
           <div className="space-y-1">
-            <div className="h-3 rounded-md bg-slate-100">
-              <div className="h-3 rounded-md bg-commo-main" style={{ width: `${(row.value / max) * 100}%` }} />
+            <div className="h-3 rounded-md bg-commo-blush">
+              <div className="h-3 rounded-md bg-gradient-to-r from-[#A66BE8] to-[#FF9BB5]" style={{ width: `${(row.value / max) * 100}%` }} />
             </div>
-            <div className="h-3 rounded-md bg-slate-100">
-              <div className="h-3 rounded-md bg-slate-400" style={{ width: `${(row.subValue / max) * 100}%` }} />
+            <div className="h-3 rounded-md bg-commo-sky">
+              <div className="h-3 rounded-md bg-gradient-to-r from-[#8BC7FF] to-[#A8E7CF]" style={{ width: `${(row.subValue / max) * 100}%` }} />
             </div>
           </div>
         </div>
@@ -1481,8 +1508,8 @@ function ProgressRow({ label, value, max, suffix = "人" }: { label: string; val
         <span className="font-semibold text-slate-700">{label}</span>
         <span className="font-bold text-commo-ink">{value}{suffix}</span>
       </div>
-      <div className="h-2 rounded-md bg-slate-100">
-        <div className="h-2 rounded-md bg-commo-main" style={{ width: `${Math.min((value / max) * 100, 100)}%` }} />
+      <div className="h-2 rounded-md bg-commo-blush">
+        <div className="h-2 rounded-md bg-gradient-to-r from-[#A66BE8] via-[#FF9BB5] to-[#A8E7CF]" style={{ width: `${Math.min((value / max) * 100, 100)}%` }} />
       </div>
     </div>
   );
@@ -1490,7 +1517,7 @@ function ProgressRow({ label, value, max, suffix = "人" }: { label: string; val
 
 function PreviewBlock({ title, items }: { title: string; items: string[] }) {
   return (
-    <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+    <article className="rounded-md border border-commo-line bg-gradient-to-br from-white to-commo-blush p-4 shadow-sm">
       <h3 className="font-bold text-commo-ink">{title}</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {items.map((item) => (
