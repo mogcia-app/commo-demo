@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import { CalendarReservationSite } from "@/components/booking/calendar-reservation-site";
 import { GolfStartReservationSite } from "@/components/booking/golf-start-reservation-site";
 import { HotelSearchReservationSite } from "@/components/booking/hotel-search-reservation-site";
+import { SurveyForm } from "@/app/demo/survey-form";
 import { bookingSites, type BookingSiteSlug } from "@/lib/booking-sites";
 
 const defaultBookingPath = "/hotel-search";
-const bookingPaths = ["/calendar", "/hotel-search", "/golf-start"];
+const liffContentPaths = ["/calendar", "/hotel-search", "/golf-start", "/demo"];
 const liffPathPrefix = "/liff";
 
 export function LiffEntryRedirect() {
-  const [siteSlug, setSiteSlug] = useState<BookingSiteSlug>("hotel-search");
+  const [contentPath, setContentPath] = useState(defaultBookingPath);
 
   useEffect(() => {
     const currentUrl = new URL(window.location.href);
@@ -19,15 +20,15 @@ export function LiffEntryRedirect() {
     const directPath = getDirectLiffPath(currentUrl.pathname, currentUrl.search);
     const stateParams = getStateParams(statePath);
     const requestedPath = currentUrl.searchParams.get("path") ?? stateParams.get("path");
-    const bookingPath = getBookingPath(statePath) ?? getBookingPath(directPath) ?? getBookingPath(requestedPath) ?? defaultBookingPath;
+    const nextContentPath = getLiffContentPath(statePath) ?? getLiffContentPath(directPath) ?? getLiffContentPath(requestedPath) ?? defaultBookingPath;
 
-    setSiteSlug(getSiteSlug(bookingPath));
+    setContentPath(nextContentPath);
   }, []);
 
-  return renderBookingSite(siteSlug);
+  return renderLiffContent(contentPath);
 }
 
-function getBookingPath(path: string | null) {
+function getLiffContentPath(path: string | null) {
   if (!path?.startsWith("/")) {
     return null;
   }
@@ -38,7 +39,7 @@ function getBookingPath(path: string | null) {
 
   const pathname = path.split("?")[0];
 
-  if (!bookingPaths.includes(pathname)) {
+  if (!liffContentPaths.includes(pathname)) {
     return null;
   }
 
@@ -77,7 +78,19 @@ function getSiteSlug(path: string): BookingSiteSlug {
   return "hotel-search";
 }
 
-function renderBookingSite(siteSlug: BookingSiteSlug) {
+function renderLiffContent(path: string) {
+  if (path === "/demo") {
+    return (
+      <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 text-commo-ink sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl">
+          <SurveyForm />
+        </div>
+      </main>
+    );
+  }
+
+  const siteSlug = getSiteSlug(path);
+
   if (siteSlug === "calendar") {
     return <CalendarReservationSite site={bookingSites.calendar} />;
   }

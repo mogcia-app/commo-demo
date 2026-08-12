@@ -510,7 +510,7 @@ function HotelSurveyResponsesPanel() {
   });
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("");
-  const surveyUrl = typeof window === "undefined" ? "/demo" : `${window.location.origin}/demo`;
+  const surveyUrl = getSurveyDeliveryUrl();
 
   useEffect(() => {
     let ignore = false;
@@ -692,7 +692,7 @@ function SurveyBroadcastPanel() {
     usageCount: "",
     weekdayNeeds: "",
   });
-  const surveyUrl = typeof window === "undefined" ? "/demo" : `${window.location.origin}/demo`;
+  const surveyUrl = getSurveyDeliveryUrl();
   const [message, setMessage] = useState(`{name} 様\n\nホテル利用アンケートにご協力ください。\n${surveyUrl}\n\n回答内容に合わせておすすめプランをご案内します。`);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -1401,6 +1401,20 @@ function toSegmentOptions(labels: string[], counts: { label: string; count: numb
   const countByLabel = new Map(counts.map((item) => [item.label, item.count]));
 
   return labels.map((label) => ({ label, count: countByLabel.get(label) ?? 0 }));
+}
+
+function getSurveyDeliveryUrl() {
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+
+  if (liffId) {
+    return `https://liff.line.me/${liffId}?path=%2Fdemo`;
+  }
+
+  if (typeof window === "undefined") {
+    return "/liff?path=/demo";
+  }
+
+  return `${window.location.origin}/liff?path=/demo`;
 }
 
 function daysSinceClient(value: string) {
