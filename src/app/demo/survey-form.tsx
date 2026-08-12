@@ -20,7 +20,7 @@ const usageCountOptions = ["初めて", "年1回程度", "年2〜3回", "年4回
 const weekdayNeedsOptions = ["平日に泊まりたい", "平日の日帰り利用に興味あり", "平日限定プランなら検討したい", "週末・祝日が中心", "まだ決まっていない"];
 
 export function SurveyForm() {
-  const { profile } = useLineProfile({ loginRedirectPath: "/demo" });
+  const { profile } = useLineProfile({ loginRedirectPath: "/demo", requireLogin: false });
   const [answer, setAnswer] = useState<SurveyAnswer>({
     name: "",
     ageGroup: "",

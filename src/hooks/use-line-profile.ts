@@ -21,7 +21,7 @@ const demoProfile: LineProfile = {
 
 const allowDemoProfile = process.env.NODE_ENV !== "production";
 
-export function useLineProfile(options?: { loginRedirectPath?: string }) {
+export function useLineProfile(options?: { loginRedirectPath?: string; requireLogin?: boolean }) {
   const [profile, setProfile] = useState<LineProfile | null>(null);
   const [liffState, setLiffState] = useState("LIFFを確認しています");
   const [authVerification, setAuthVerification] = useState<LineAuthVerification>({ verified: false });
@@ -48,6 +48,12 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
         await liff.init({ liffId });
 
         if (!liff.isLoggedIn()) {
+          if (options?.requireLogin === false) {
+            setLiffState("LINE未認証で表示中");
+            setAuthVerification({ verified: false });
+            return;
+          }
+
           const redirectUri = createLoginRedirectUri(options?.loginRedirectPath);
 
           if (hasTriedLoginRedirect(redirectUri)) {
@@ -117,7 +123,7 @@ export function useLineProfile(options?: { loginRedirectPath?: string }) {
     return () => {
       ignore = true;
     };
-  }, [options?.loginRedirectPath]);
+  }, [options?.loginRedirectPath, options?.requireLogin]);
 
   return { profile, liffState, authVerified: authVerification.verified, authVerificationError: authVerification.error };
 }
