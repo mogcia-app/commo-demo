@@ -20,7 +20,7 @@ const usageCountOptions = ["初めて", "年1回程度", "年2〜3回", "年4回
 const weekdayNeedsOptions = ["平日に泊まりたい", "平日の日帰り利用に興味あり", "平日限定プランなら検討したい", "週末・祝日が中心", "まだ決まっていない"];
 
 export function SurveyForm() {
-  const { profile } = useLineProfile({ loginRedirectPath: "/demo" });
+  const { profile, idToken, authVerified, authVerificationError, liffState } = useLineProfile({ loginRedirectPath: "/demo" });
   const [answer, setAnswer] = useState<SurveyAnswer>({
     name: "",
     ageGroup: "",
@@ -37,7 +37,7 @@ export function SurveyForm() {
   const [savedResponseId, setSavedResponseId] = useState("");
 
   useEffect(() => {
-    if (!profile?.userId) {
+    if (!profile?.userId || !idToken || !authVerified) {
       return;
     }
 
@@ -48,10 +48,11 @@ export function SurveyForm() {
         lineUserId: profile.userId,
         lineDisplayName: profile.displayName,
         linePictureUrl: profile.pictureUrl,
+        idToken,
         source: "liff",
       }),
     }).catch(() => undefined);
-  }, [profile?.displayName, profile?.pictureUrl, profile?.userId]);
+  }, [authVerified, idToken, profile?.displayName, profile?.pictureUrl, profile?.userId]);
 
   const answeredRequiredCount = useMemo(() => {
     return [answer.name, answer.ageGroup, answer.purpose, answer.prefecture, answer.usageCount, answer.weekdayNeeds].filter(Boolean).length;
@@ -79,6 +80,11 @@ export function SurveyForm() {
   async function submitSurvey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!authVerified || !idToken) {
+      setError(authVerificationError || "公式LINEの友だち追加とLINE認証を確認できませんでした。");
+      return;
+    }
+
     if (!answer.name.trim() || !answer.ageGroup || !answer.purpose || !answer.prefecture || !answer.usageCount || !answer.weekdayNeeds) {
       setError("必須項目をすべて選択してください。");
       return;
@@ -99,6 +105,7 @@ export function SurveyForm() {
           lineUserId: profile?.userId,
           lineDisplayName: profile?.displayName,
           linePictureUrl: profile?.pictureUrl,
+          idToken,
           source: profile?.userId ? "liff" : "web",
         }),
       });
@@ -228,10 +235,15 @@ export function SurveyForm() {
       </div>
 
       {error ? <p className="mt-5 rounded-md bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+      {!authVerified ? (
+        <p className="mt-5 rounded-md bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+          {authVerificationError || liffState || "公式LINEの友だち追加とLINE認証を確認しています。"}
+        </p>
+      ) : null}
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-slate-500">送信すると、回答内容をFirestoreへ保存します。</p>
-        <button type="submit" disabled={isSubmitting} className="rounded-md bg-commo-main px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-commo-hover disabled:cursor-not-allowed disabled:bg-slate-300">
+        <button type="submit" disabled={isSubmitting || !authVerified || !idToken} className="rounded-md bg-commo-main px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-commo-hover disabled:cursor-not-allowed disabled:bg-slate-300">
           {isSubmitting ? "保存中..." : "回答を送信"}
         </button>
       </div>

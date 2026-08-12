@@ -1,13 +1,14 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
+import { LineFriendAuthError, requireLineFriend } from "@/lib/server/line-friend-auth";
 import { getRegionByPrefecture } from "@/lib/survey-taxonomy";
 
 type SurveyResponseRequest = {
   name?: string;
-  lineUserId?: string;
   lineDisplayName?: string;
   linePictureUrl?: string;
+  idToken?: string;
   ageGroup?: string;
   purpose?: string;
   area?: string;
@@ -23,9 +24,9 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as SurveyResponseRequest;
     const name = body.name?.trim() ?? "";
-    const lineUserId = body.lineUserId?.trim() ?? "";
     const lineDisplayName = body.lineDisplayName?.trim() ?? "";
     const linePictureUrl = body.linePictureUrl?.trim() ?? "";
+    const idToken = body.idToken?.trim() ?? "";
     const ageGroup = body.ageGroup?.trim() ?? "";
     const purpose = body.purpose?.trim() ?? "";
     const prefecture = body.prefecture?.trim() || body.area?.trim() || "";
@@ -44,6 +45,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "必須項目をすべて選択してください。" }, { status: 400 });
     }
 
+    if (!idToken) {
+      return NextResponse.json({ error: "LINE認証情報が不足しています。" }, { status: 401 });
+    }
+
+    const friend = await requireLineFriend(idToken);
     const db = getAdminDb();
     const now = FieldValue.serverTimestamp();
     const surveyResponseRef = db.collection("surveyResponses").doc();
@@ -60,59 +66,16 @@ export async function POST(request: Request) {
       comment,
     };
 
-    if (!lineUserId) {
-      await Promise.all([
-        surveyResponseRef.set({
-          lineUserId: "",
-          lineDisplayName: "",
-          linePictureUrl: "",
-          customerId: "",
-          name,
-          answers: surveyAnswers,
-          source: "web",
-          createdAt: now,
-          updatedAt: now,
-        }),
-        analyticsEventRef.set({
-          eventType: "survey_submit",
-          source: "web",
-          lineUserId: "",
-          customerId: "",
-          reservationId: "",
-          campaignId: "",
-          couponId: "",
-          metadata: {
-            surveyResponseId: surveyResponseRef.id,
-            purpose,
-            prefecture,
-            region,
-            interests,
-            usageCount,
-            weekdayNeeds,
-          },
-          createdAt: now,
-        }),
-      ]);
-
-      return NextResponse.json({
-        surveyResponse: {
-          id: surveyResponseRef.id,
-          lineUserId: "",
-          name,
-        },
-      });
-    }
-
-    const lineUserRef = db.collection("lineUsers").doc(toSafeDocId(lineUserId));
+    const lineUserId = friend.lineUserId;
 
     await db.runTransaction(async (transaction) => {
-      const existingLineUser = await transaction.get(lineUserRef);
-      const customerId = `line_${toSafeDocId(lineUserId)}`;
+      const existingLineUser = await transaction.get(friend.lineUserRef);
+      const customerId = `line_${friend.safeLineUserId}`;
 
       transaction.set(surveyResponseRef, {
         lineUserId,
-        lineDisplayName,
-        linePictureUrl,
+        lineDisplayName: lineDisplayName || friend.profile.displayName,
+        linePictureUrl: linePictureUrl || friend.profile.pictureUrl,
         customerId,
         name,
         answers: surveyAnswers,
@@ -122,11 +85,11 @@ export async function POST(request: Request) {
       });
 
       transaction.set(
-        lineUserRef,
+        friend.lineUserRef,
         {
           lineUserId,
-          displayName: lineDisplayName || existingLineUser.data()?.displayName || name,
-          pictureUrl: linePictureUrl || existingLineUser.data()?.pictureUrl || "",
+          displayName: lineDisplayName || friend.profile.displayName || existingLineUser.data()?.displayName || name,
+          pictureUrl: linePictureUrl || friend.profile.pictureUrl || existingLineUser.data()?.pictureUrl || "",
           customerName: name,
           customerId,
           followStatus: "following",
@@ -174,6 +137,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (cause) {
+    if (cause instanceof LineFriendAuthError) {
+      return NextResponse.json({ error: cause.message }, { status: cause.status });
+    }
+
     console.error(cause);
     return NextResponse.json(
       { error: cause instanceof Error ? cause.message : "アンケート回答の保存に失敗しました。" },
@@ -192,8 +159,4 @@ function normalizeStringArray(value: unknown) {
 
 function buildSurveyTags(input: { ageGroup: string; purpose: string; prefecture: string; region: string; interests: string[]; usageCount: string; weekdayNeeds: string }) {
   return [...new Set([input.ageGroup, `${input.purpose}関心`, input.prefecture, input.region ? `${input.region}エリア` : "", input.usageCount, input.weekdayNeeds, ...input.interests].filter(Boolean))];
-}
-
-function toSafeDocId(value: string) {
-  return value.replaceAll("/", "_");
 }

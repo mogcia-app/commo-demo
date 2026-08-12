@@ -1,55 +1,66 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
+import { LineFriendAuthError, requireLineFriend } from "@/lib/server/line-friend-auth";
 
 type SurveyOpenRequest = {
-  lineUserId?: string;
   lineDisplayName?: string;
   linePictureUrl?: string;
+  idToken?: string;
   source?: "liff" | "line" | "web";
 };
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as SurveyOpenRequest;
-  const lineUserId = body.lineUserId?.trim() ?? "";
+  try {
+    const body = (await request.json().catch(() => ({}))) as SurveyOpenRequest;
+    const idToken = body.idToken?.trim() ?? "";
 
-  if (!lineUserId) {
-    return NextResponse.json({ tracked: false });
+    if (!idToken) {
+      return NextResponse.json({ error: "LINE認証情報が不足しています。" }, { status: 401 });
+    }
+
+    const friend = await requireLineFriend(idToken);
+    const now = FieldValue.serverTimestamp();
+    const db = getAdminDb();
+    const eventRef = db.collection("analyticsEvents").doc();
+    const displayName = body.lineDisplayName?.trim() || friend.profile.displayName;
+    const pictureUrl = body.linePictureUrl?.trim() || friend.profile.pictureUrl;
+
+    await Promise.all([
+      friend.lineUserRef.set(
+        {
+          lineUserId: friend.lineUserId,
+          displayName,
+          pictureUrl,
+          surveyOpenedAt: now,
+          latestSurveyStatus: "opened",
+          lastActionAt: now,
+          lastActionLabel: "アンケートページを開封",
+          reactionCount: FieldValue.increment(1),
+          updatedAt: now,
+        },
+        { merge: true },
+      ),
+      eventRef.set({
+        eventType: "survey_open",
+        source: body.source ?? "liff",
+        lineUserId: friend.lineUserId,
+        customerId: `line_${friend.safeLineUserId}`,
+        metadata: {},
+        createdAt: now,
+      }),
+    ]);
+
+    return NextResponse.json({ tracked: true });
+  } catch (cause) {
+    if (cause instanceof LineFriendAuthError) {
+      return NextResponse.json({ error: cause.message }, { status: cause.status });
+    }
+
+    console.error(cause);
+    return NextResponse.json(
+      { error: cause instanceof Error ? cause.message : "アンケート開封の記録に失敗しました。" },
+      { status: 500 },
+    );
   }
-
-  const now = FieldValue.serverTimestamp();
-  const db = getAdminDb();
-  const lineUserRef = db.collection("lineUsers").doc(toSafeDocId(lineUserId));
-  const eventRef = db.collection("analyticsEvents").doc();
-
-  await Promise.all([
-    lineUserRef.set(
-      {
-        lineUserId,
-        displayName: body.lineDisplayName?.trim() ?? "",
-        pictureUrl: body.linePictureUrl?.trim() ?? "",
-        surveyOpenedAt: now,
-        latestSurveyStatus: "opened",
-        lastActionAt: now,
-        lastActionLabel: "アンケートページを開封",
-        reactionCount: FieldValue.increment(1),
-        updatedAt: now,
-      },
-      { merge: true },
-    ),
-    eventRef.set({
-      eventType: "survey_open",
-      source: body.source ?? "liff",
-      lineUserId,
-      customerId: `line_${toSafeDocId(lineUserId)}`,
-      metadata: {},
-      createdAt: now,
-    }),
-  ]);
-
-  return NextResponse.json({ tracked: true });
-}
-
-function toSafeDocId(value: string) {
-  return value.replaceAll("/", "_");
 }
