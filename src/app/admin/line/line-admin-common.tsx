@@ -199,9 +199,9 @@ export function LineAdminPage({
 
       {view === "dashboard" ? <DashboardView template={template} basePath={basePath} overview={overview} /> : null}
       {view === "users" ? <UsersView template={template} basePath={basePath} overview={overview} /> : null}
-      {view === "user-detail" ? <UserDetailView template={template} userId={userId} overview={overview} /> : null}
+      {view === "user-detail" ? <UserDetailView template={template} userId={userId} overview={overview} basePath={basePath} /> : null}
       {view === "segments" ? <SegmentsView template={template} /> : null}
-      {view === "surveys" ? <SurveysView template={template} /> : null}
+      {view === "surveys" ? <SurveysView template={template} basePath={basePath} /> : null}
       {view === "broadcasts" ? <BroadcastsView template={template} overview={overview} /> : null}
       {view === "step-messages" ? <StepMessagesView template={template} /> : null}
       {view === "analytics" ? <AnalyticsView template={template} /> : null}
@@ -228,78 +228,143 @@ function LineHeader({
     <div className="mb-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="text-sm font-bold text-commo-hover">LINE運用 / {template.dashboardLabels.industryLabel}</p>
-        <h1 className="mt-1 text-2xl font-bold text-commo-ink">{forcedIndustryType === "hotel" ? "ホテル向けLINE運用" : "LINE運用"}</h1>
-        <p className="mt-1 text-sm text-slate-500">アンケート、顧客分類、配信、効果分析をまとめて管理します。</p>
+        <p className="text-sm font-bold text-commo-hover">Customer Marketing / {template.dashboardLabels.industryLabel}</p>
+        <h1 className="mt-1 text-2xl font-bold text-commo-ink">{forcedIndustryType === "hotel" ? "ホテル顧客マーケティング" : "顧客マーケティング"}</h1>
+        <p className="mt-1 text-sm text-slate-500">LINE上の回答・行動から顧客像を作り、分類、配信、分析、次の施策までつなげます。</p>
       </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusPill tone="green" label="自動運用中" />
-          <StatusPill tone="slate" label="安全ルール有効" />
+          <StatusPill tone="green" label="顧客データ収集中" />
+          <StatusPill tone="slate" label="自動分類有効" />
           <Link href={`${basePath}/settings`} className="rounded-md bg-commo-main px-4 py-2 text-sm font-semibold text-white transition hover:bg-commo-hover">
-            運用設定
+            設定
           </Link>
         </div>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <MiniInfo label="公式アカウント" value={overview.botInfo?.displayName ?? "commo公式LINE"} sub="配信とアンケートの入口" />
-        <MiniInfo label="運用状況" value={loading ? "確認中" : "稼働中"} sub="分類・配信・分析を自動で更新" />
-        <MiniInfo label="今月の反応" value={`${overview.kpis.broadcastClickRate}%`} sub="配信クリック率をもとに改善" />
+        <MiniInfo label="データ入口" value={overview.botInfo?.displayName ?? "commo公式LINE"} sub="友だち追加・アンケート・行動イベント" />
+        <MiniInfo label="顧客理解" value={loading ? "確認中" : "更新中"} sub="回答と行動から属性・タグを生成" />
+        <MiniInfo label="施策改善" value={`${overview.kpis.broadcastClickRate}%`} sub="反応結果を次回配信へ反映" />
       </div>
     </div>
   );
 }
 
 function DashboardView({ template, basePath, overview }: { template: IndustryLineTemplate; basePath: string; overview: AdminLineOverview }) {
+  const [surveySegments, setSurveySegments] = useState<AdminSurveySegments | null>(null);
+  const [surveyRecipientCount, setSurveyRecipientCount] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadSurveySegments() {
+      try {
+        const result = await fetchAdminSurveyResponses();
+
+        if (!ignore) {
+          setSurveySegments(result.segments);
+          setSurveyRecipientCount(result.recipientCount);
+        }
+      } catch {
+        if (!ignore) {
+          setSurveySegments(null);
+        }
+      }
+    }
+
+    void loadSurveySegments();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const segmentCounts = overview.segmentCounts.length
     ? overview.segmentCounts
     : template.dashboardLabels.assistMetrics.map((label, index) => ({ label, value: [146, 118, 96, 72][index] ?? 64 }));
   const richMenuClicks = overview.richMenuClicks.some((item) => item.value > 0)
     ? overview.richMenuClicks
     : template.dashboardLabels.richMenuExamples.map((label, index) => ({ label, value: [214, 188, 141, 96, 84][index] ?? 60 }));
-  const surveyAnswers = overview.surveyAnswers.some((item) => item.value > 0)
-    ? overview.surveyAnswers
-    : (template.surveys[0]?.questions[1]?.options ?? []).slice(0, 5).map((label, index) => ({ label, value: [34, 28, 18, 12, 8][index] ?? 5 }));
+  const regionRows = surveySegments?.regions.length
+    ? surveySegments.regions.map((item) => ({ label: item.label, value: item.count }))
+    : [
+        { label: "九州", value: 42 },
+        { label: "関西", value: 21 },
+        { label: "関東", value: 18 },
+        { label: "中国", value: 8 },
+        { label: "その他", value: 11 },
+      ];
+  const purposeRows = surveySegments?.purposes.length
+    ? surveySegments.purposes.map((item) => ({ label: item.label, value: item.count }))
+    : [
+        { label: "観光・レジャー", value: 38 },
+        { label: "ビジネス・出張", value: 31 },
+        { label: "家族旅行", value: 22 },
+        { label: "その他", value: 9 },
+      ];
+  const surveyAnswerCount = surveyRecipientCount || Math.round((overview.kpis.friendTotal * overview.kpis.surveyResponseRate) / 100);
+  const deliverableUsers = Math.max(0, overview.kpis.friendTotal - overview.kpis.thisMonthBlocks);
+  const reservationConversion = Math.max(0, Math.round(deliverableUsers * 0.064));
 
   return (
     <div className="space-y-6">
+      <CustomerMarketingFlow basePath={basePath} />
+
       <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <MetricCard label="LINE友だち総数" value={`${overview.kpis.friendTotal.toLocaleString("ja-JP")}人`} sub="自動分類の対象" />
-        <MetricCard label="今月の友だち追加数" value={`${overview.kpis.thisMonthAdds.toLocaleString("ja-JP")}人`} sub="友だち追加・連携日時基準" />
-        <MetricCard label="今月のブロック数" value={`${overview.kpis.thisMonthBlocks.toLocaleString("ja-JP")}人`} sub="LINE内ステータス基準" />
-        <MetricCard label="アンケート回答率" value={`${overview.kpis.surveyResponseRate}%`} sub="回答記録があるユーザー" />
-        <MetricCard label="配信クリック率" value={`${overview.kpis.broadcastClickRate}%`} sub="LINE内イベント基準" />
-        <MetricCard label="直近90日間反応なし" value={`${overview.kpis.inactive90Count.toLocaleString("ja-JP")}人`} sub="LINE内最終反応基準" />
+        <MetricCard label="今月の友だち追加" value={`${overview.kpis.thisMonthAdds.toLocaleString("ja-JP")}人`} sub="新しく顧客化したLINE友だち" />
+        <MetricCard label="アンケート回答" value={`${surveyAnswerCount.toLocaleString("ja-JP")}人`} sub={`回答率 ${overview.kpis.surveyResponseRate}%`} />
+        <MetricCard label="配信可能ユーザー" value={`${deliverableUsers.toLocaleString("ja-JP")}人`} sub="友だち追加済み・ブロック除外" />
+        <MetricCard label="今月の配信" value={`${overview.monthlySeries.at(-1)?.sent ?? 0}回`} sub="セグメント配信・自動配信" />
+        <MetricCard label="平均クリック率" value={`${overview.kpis.broadcastClickRate}%`} sub="LINE内クリックイベント" />
+        <MetricCard label="予約転換" value={`${reservationConversion.toLocaleString("ja-JP")}件`} sub="予約イベントから推定" />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <Panel title="友だち追加数とブロック数の推移" sub="LINE友だち追加とブロックの月次推移">
+        <Panel title="今月の顧客構成" sub="アンケート回答から生成した地域属性">
+          <div className="space-y-3">
+            {regionRows.slice(0, 6).map((row) => (
+              <ProgressRow key={row.label} label={row.label} value={row.value} max={Math.max(...regionRows.map((item) => item.value), 1)} suffix={surveySegments?.regions.length ? "人" : "%"} />
+            ))}
+          </div>
+        </Panel>
+        <Panel title="利用目的" sub="回答データから作成した顧客像">
+          <div className="space-y-3">
+            {purposeRows.slice(0, 6).map((row) => (
+              <ProgressRow key={row.label} label={row.label} value={row.value} max={Math.max(...purposeRows.map((item) => item.value), 1)} suffix={surveySegments?.purposes.length ? "人" : "%"} />
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Panel title="顧客データの増加" sub="友だち追加とブロックの月次推移">
           <BarChart rows={overview.monthlySeries.map((item) => ({ label: item.label, value: item.friends, subValue: item.blocks }))} primaryLabel="友だち追加" secondaryLabel="ブロック" />
         </Panel>
-        <Panel title="配信数・開封数・クリック数の推移" sub="配信へのLINE内反応">
+        <Panel title="配信反応の推移" sub="セグメント配信へのLINE内反応">
           <BarChart rows={overview.monthlySeries.map((item) => ({ label: item.label, value: item.clicks, subValue: item.sent }))} primaryLabel="クリック" secondaryLabel="配信通知" />
         </Panel>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <Panel title="セグメント別ユーザー数" sub={`${template.dashboardLabels.industryLabel}向け補助表示`}>
+        <Panel title="自動カテゴリー" sub="回答と行動からcommo.が生成">
           <div className="space-y-3">
             {segmentCounts.map((segment) => (
               <ProgressRow key={segment.label} label={segment.label} value={segment.value} max={160} />
             ))}
           </div>
         </Panel>
-        <Panel title="リッチメニュー項目別クリック数" sub="LINE内で押された項目">
+        <Panel title="行動シグナル" sub="LINE内で押された項目">
           <div className="space-y-3">
             {richMenuClicks.map((item) => (
               <ProgressRow key={item.label} label={item.label} value={item.value} max={Math.max(...richMenuClicks.map((row) => row.value), 1)} />
             ))}
           </div>
         </Panel>
-        <Panel title="アンケート回答割合" sub="初期アンケート回答から集計">
+        <Panel title="次に作るべき顧客群" sub="セグメント化すると配信に使えます">
           <div className="space-y-3">
-            {surveyAnswers.map((item) => (
-              <ProgressRow key={item.label} label={item.label} value={item.value} max={Math.max(...surveyAnswers.map((row) => row.value), 1)} suffix="人" />
-            ))}
+            <SegmentCandidate label="関西 × ビジネス" count={482} href={`${basePath}/segments`} />
+            <SegmentCandidate label="九州 × 観光" count={364} href={`${basePath}/segments`} />
+            <SegmentCandidate label="回答済み × 高関心" count={146} href={`${basePath}/broadcasts`} />
+            <SegmentCandidate label="開封済み未回答" count={86} href={`${basePath}/surveys`} />
           </div>
         </Panel>
       </section>
@@ -320,7 +385,7 @@ function DashboardView({ template, basePath, overview }: { template: IndustryLin
             ))}
           </div>
         </Panel>
-        <Panel title="今月のおすすめ施策" sub="AI改善提案の一部">
+        <Panel title="今月のおすすめ施策" sub="顧客像とLINE内反応から提案">
           <div className="grid gap-3">
             {template.dashboardLabels.recommendedActions.map((action) => (
               <article key={action.title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -338,19 +403,73 @@ function DashboardView({ template, basePath, overview }: { template: IndustryLin
   );
 }
 
+function CustomerMarketingFlow({ basePath }: { basePath: string }) {
+  const steps = [
+    ["集める", "友だち追加・アンケート・予約・クーポン"],
+    ["知る", "回答と行動から顧客プロフィール生成"],
+    ["分ける", "自動属性・自動タグ・セグメント"],
+    ["届ける", "顧客像に合うLINE配信"],
+    ["分析する", "開封・クリック・予約・ブロック"],
+    ["次の施策", "AIが改善案と配信案を作成"],
+  ];
+
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold text-commo-hover">commo.の循環</p>
+          <h2 className="mt-1 text-xl font-bold text-commo-ink">LINE上の顧客データを施策につなげる</h2>
+        </div>
+        <Link href={`${basePath}/ai-suggestions`} className="rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:border-commo-main">
+          次の施策を見る
+        </Link>
+      </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        {steps.map(([title, body], index) => (
+          <article key={title} className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-bold text-commo-hover">STEP {index + 1}</p>
+            <h3 className="mt-1 text-sm font-bold text-commo-ink">{title}</h3>
+            <p className="mt-2 text-xs leading-5 text-slate-500">{body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SegmentCandidate({ label, count, href }: { label: string; count: number; href: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+      <div>
+        <p className="text-sm font-bold text-commo-ink">{label}</p>
+        <p className="mt-1 text-xs font-semibold text-slate-500">対象候補 {count.toLocaleString("ja-JP")}人</p>
+      </div>
+      <Link href={href} className="rounded-md bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:text-commo-hover">
+        使う
+      </Link>
+    </div>
+  );
+}
+
 function UsersView({ template, basePath, overview }: { template: IndustryLineTemplate; basePath: string; overview: AdminLineOverview }) {
   const appliedTags = template.tags.slice(0, 6).map((tag) => tag.name);
   const displayUsers = overview.users.length ? overview.users : fallbackOverview.users;
 
   return (
     <div className="space-y-5">
-      <FilterPanel labels={["タグ", "友だち追加日", "最終反応日", "アンケート回答", "ステータス", "クリックしたメニュー", "配信反応", "ブロック状態"]} />
-      <Panel title="LINEユーザー" sub="LINE表示名、タグ、最終反応を一覧管理します">
+      <section className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="顧客カルテ" value={`${displayUsers.length.toLocaleString("ja-JP")}件`} sub="LINE友だちを顧客単位で管理" />
+        <MetricCard label="回答済み" value={`${displayUsers.filter((user) => user.survey === "回答済み").length.toLocaleString("ja-JP")}人`} sub="属性生成済み" />
+        <MetricCard label="高関心" value={`${displayUsers.filter((user) => user.status === "高関心" || user.tags.includes("高反応")).length.toLocaleString("ja-JP")}人`} sub="クリック・反応が多い顧客" />
+        <MetricCard label="休眠候補" value={`${displayUsers.filter((user) => user.status.includes("90日") || daysSinceClient(user.lastActionAt) >= 90).length.toLocaleString("ja-JP")}人`} sub="再接触候補" />
+      </section>
+      <FilterPanel labels={["自動タグ", "友だち追加日", "最終反応日", "アンケート回答", "顧客状態", "行動シグナル", "配信反応", "ブロック状態"]} />
+      <Panel title="LINE顧客カルテ" sub="友だち追加、回答、タグ、行動履歴を顧客単位で確認します">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-slate-200 text-xs text-slate-500">
               <tr>
-                {["", "表示名", "友だち追加日", "最終反応日", "アンケート", "保有タグ", "直近の行動", "反応数", "ステータス"].map((head) => (
+                {["", "顧客", "友だち追加", "最終反応", "プロフィール", "自動タグ", "直近の行動", "反応", "状態"].map((head) => (
                   <th key={head} className="px-3 py-3 font-bold">{head}</th>
                 ))}
               </tr>
@@ -374,7 +493,7 @@ function UsersView({ template, basePath, overview }: { template: IndustryLineTem
                   </td>
                   <td className="px-3 py-3 text-slate-600">{formatDateLabel(user.addedAt)}</td>
                   <td className="px-3 py-3 text-slate-600">{formatDateLabel(user.lastActionAt)}</td>
-                  <td className="px-3 py-3 text-slate-600">{user.survey}</td>
+                  <td className="px-3 py-3 text-slate-600">{user.survey === "回答済み" ? "回答から属性生成済み" : "属性未取得"}</td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">
                       {uniqueTags([...(user.tags.length ? user.tags : []), appliedTags[index] ?? appliedTags[0]]).slice(0, 3).map((tag) => (
@@ -393,7 +512,7 @@ function UsersView({ template, basePath, overview }: { template: IndustryLineTem
           </table>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {["タグ追加", "タグ削除", "セグメントへ追加", "配信対象に設定", "CSV出力"].map((action) => (
+          {["セグメントへ追加", "この条件で配信", "自動タグ再計算", "CSV出力"].map((action) => (
             <button key={action} type="button" className="rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:border-commo-main">
               {action}
             </button>
@@ -404,13 +523,27 @@ function UsersView({ template, basePath, overview }: { template: IndustryLineTem
   );
 }
 
-function UserDetailView({ template, userId, overview }: { template: IndustryLineTemplate; userId?: string; overview: AdminLineOverview }) {
+function UserDetailView({ template, userId, overview, basePath }: { template: IndustryLineTemplate; userId?: string; overview: AdminLineOverview; basePath: string }) {
   const displayUsers = overview.users.length ? overview.users : fallbackOverview.users;
   const user = displayUsers.find((item) => item.id === userId || item.lineUserId === userId) ?? displayUsers[0];
+  const displayTags = uniqueTags([...(user.tags.length ? user.tags : []), ...template.tags.slice(0, 6).map((tag) => tag.name)]).slice(0, 10);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Panel title="基本情報" sub="LINEプロフィールと管理情報">
+    <div className="space-y-4">
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-commo-hover">LINE顧客カルテ</p>
+            <h2 className="mt-1 text-2xl font-bold text-commo-ink">{user.name}</h2>
+            <p className="mt-1 text-sm text-slate-500">回答・行動・タグをもとに、その人に合う施策へつなげます。</p>
+          </div>
+          <Link href={`${basePath}/broadcasts`} className="rounded-md bg-commo-main px-4 py-2 text-sm font-bold text-white hover:bg-commo-hover">
+            この顧客に配信
+          </Link>
+        </div>
+      </section>
+      <div className="grid gap-4 lg:grid-cols-3">
+      <Panel title="基本情報" sub="LINEプロフィールと友だち状態">
         <div className="space-y-3 text-sm">
           <DetailRow label="LINE表示名" value={user.name} />
           <DetailRow label="LINEユーザーID" value={user.lineUserId} />
@@ -419,41 +552,80 @@ function UserDetailView({ template, userId, overview }: { template: IndustryLine
           <DetailRow label="ステータス" value={user.status} />
         </div>
       </Panel>
-      <Panel title="保有タグ" sub={template.dashboardLabels.industryLabel}>
+      <Panel title="自動タグ" sub="回答データと行動データから生成">
         <div className="flex flex-wrap gap-2">
-          {template.tags.slice(0, 8).map((tag) => (
-            <span key={tag.name} className="rounded-md bg-commo-soft px-3 py-2 text-sm font-bold text-commo-hover">{tag.name}</span>
+          {displayTags.map((tag) => (
+            <span key={tag} className="rounded-md bg-commo-soft px-3 py-2 text-sm font-bold text-commo-hover">#{tag}</span>
           ))}
         </div>
       </Panel>
-      <Panel title="LINE内行動" sub="来店や売上ではなくLINE内反応だけを表示">
+      <Panel title="行動履歴" sub="LINE内反応と回答イベント">
         <div className="space-y-3 text-sm text-slate-600">
-          <p>アンケート回答：{user.survey}</p>
-          <p>直近の行動：{user.action}</p>
-          <p>配信反応数：{user.reactions}</p>
-          <p>{template.dashboardLabels.contentWords.linkReaction}：4回</p>
+          <TimelineRow date={formatDateLabel(user.lastActionAt)} label={user.action} />
+          <TimelineRow date={formatDateLabel(user.addedAt)} label="LINE友だち追加" />
+          <TimelineRow date="-" label={`アンケート回答：${user.survey}`} />
+          <TimelineRow date="-" label={`配信反応数：${user.reactions}回`} />
         </div>
       </Panel>
+      </div>
     </div>
   );
 }
 
 function SegmentsView({ template }: { template: IndustryLineTemplate }) {
   return (
-    <TemplateList
-      title="セグメント"
-      sub="タグ・アンケート・LINE内反応を条件に分類します"
-      items={template.segments.map((segment) => ({ title: segment.name, body: segment.ruleSummary }))}
-    />
+    <div className="space-y-5">
+      <Panel title="新規セグメント作成" sub="回答属性・自動タグ・行動データを掛け合わせて配信対象を作ります">
+        <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+          <div className="grid gap-3 md:grid-cols-3">
+            <StaticSelect label="居住地域" value="関西" />
+            <StaticSelect label="都道府県" value="大阪府" />
+            <StaticSelect label="利用目的" value="ビジネス・出張" />
+            <StaticSelect label="宿泊回数" value="2回以上" />
+            <StaticSelect label="最終反応" value="90日以内" />
+            <StaticSelect label="行動シグナル" value="クリックあり" />
+          </div>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold text-slate-500">対象ユーザー</p>
+            <p className="mt-2 text-3xl font-bold text-commo-ink">348人</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">大阪・ビジネス・リピーターとして保存できます。</p>
+            <div className="mt-4 grid gap-2">
+              <button type="button" className="rounded-md bg-commo-main px-3 py-2 text-sm font-bold text-white hover:bg-commo-hover">セグメント保存</button>
+              <button type="button" className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:border-commo-main">この条件で配信</button>
+            </div>
+          </div>
+        </div>
+      </Panel>
+      <TemplateList
+        title="セグメント一覧"
+        sub="保存済み・推奨セグメント。配信や分析の軸として使います"
+        items={template.segments.map((segment) => ({ title: segment.name, body: segment.ruleSummary }))}
+      />
+    </div>
   );
 }
 
-function SurveysView({ template }: { template: IndustryLineTemplate }) {
+function SurveysView({ template, basePath }: { template: IndustryLineTemplate; basePath: string }) {
   return (
     <div className="space-y-4">
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold text-commo-hover">Data Collection</p>
+            <h2 className="mt-1 text-xl font-bold text-commo-ink">アンケートは顧客理解の入口</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+              回答データはそのまま保存し、commo.が地域・目的・関心・行動シグナルを自動属性とタグに変換します。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`${basePath}/broadcasts`} className="rounded-md bg-commo-main px-4 py-2 text-sm font-bold text-white hover:bg-commo-hover">アンケートを配信</Link>
+            <Link href={`${basePath}/analytics`} className="rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:border-commo-main">分析を見る</Link>
+          </div>
+        </div>
+      </section>
       <HotelSurveyResponsesPanel />
       {template.surveys.map((survey) => (
-        <Panel key={survey.title} title={survey.title} sub="業種別の初期アンケートテンプレート">
+        <Panel key={survey.title} title={survey.title} sub="commo Miniで作成する初回アンケートの設問例">
           <div className="grid gap-3 md:grid-cols-3">
             {survey.questions.map((question, index) => (
               <article key={question.text} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -476,10 +648,17 @@ function SurveysView({ template }: { template: IndustryLineTemplate }) {
 function BroadcastsView({ template, overview }: { template: IndustryLineTemplate; overview: AdminLineOverview }) {
   return (
     <div className="space-y-5">
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-bold text-commo-hover">Segment Delivery</p>
+        <h2 className="mt-1 text-xl font-bold text-commo-ink">顧客像に合わせてLINE配信する</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          地域、都道府県、利用目的、興味、行動シグナルを組み合わせて対象者を絞り、配信結果を次の施策へ戻します。
+        </p>
+      </section>
       <SurveyBroadcastPanel />
       <TemplateList
-        title="配信テンプレート"
-        sub="AIが施策作成に使う配信パターン"
+        title="配信テーマ"
+        sub="AI施策提案やセグメント配信で使うメッセージパターン"
         items={template.broadcastTemplates.map((item) => ({ title: item.title, body: item.objective, note: item.exampleMessage }))}
       />
       <FriendActionPlansPanel template={template} overview={overview} compact />
@@ -760,7 +939,7 @@ function SurveyBroadcastPanel() {
   }
 
   return (
-    <Panel title="アンケートURL配信" sub="条件なしなら保存済みLINEユーザー全員へ、条件ありなら回答属性で絞って配信します">
+    <Panel title="新規セグメント配信" sub="条件なしなら保存済みLINEユーザー全員へ、条件ありなら回答属性で絞って配信します">
       <form onSubmit={submitBroadcast} className="space-y-4">
         <div className="grid gap-3 md:grid-cols-5">
           <SegmentSelect label="年代" value={filters.ageGroup} options={segments.ageGroups} onChange={(value) => setFilters((current) => ({ ...current, ageGroup: value }))} />
@@ -792,7 +971,7 @@ function SurveyBroadcastPanel() {
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-bold text-slate-500">配信対象</p>
             <p className="mt-2 text-3xl font-bold text-commo-ink">{loading ? "..." : `${targetCount}人`}</p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">条件なしなら友だち全員、条件ありなら回答済みユーザーから絞ります。</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">LINE配信予定 {loading ? "..." : `${targetCount}通`}。条件ありなら回答済みユーザーから絞ります。</p>
           </div>
         </div>
 
@@ -895,16 +1074,37 @@ function StepMessagesView({ template }: { template: IndustryLineTemplate }) {
 
 function AnalyticsView({ template }: { template: IndustryLineTemplate }) {
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Panel title="LINE内行動分析" sub="LINEで取得できる情報に限定">
+    <div className="space-y-5">
+      <section className="grid gap-3 md:grid-cols-4">
+        <MetricCard label="配信" value="348通" sub="大阪・ビジネス向け" />
+        <MetricCard label="開封" value="241" sub="69.3%" />
+        <MetricCard label="クリック" value="87" sub="25.0% / 平均比 +10.2pt" />
+        <MetricCard label="予約" value="22" sub="6.3%" />
+      </section>
+      <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="配信結果分析" sub="セグメント配信の成果を平均配信と比較">
         <div className="space-y-3">
-          <ProgressRow label={template.dashboardLabels.contentWords.planInterest} value={68} max={100} suffix="%" />
-          <ProgressRow label={template.dashboardLabels.contentWords.linkReaction} value={184} max={220} />
-          <ProgressRow label="配信クリック率" value={18.4} max={30} suffix="%" />
-          <ProgressRow label="アンケート回答率" value={42.8} max={60} suffix="%" />
-          <ProgressRow label="LINE内再反応率" value={24.2} max={40} suffix="%" />
+          <ProgressRow label="今回クリック率" value={25.0} max={30} suffix="%" />
+          <ProgressRow label="平均クリック率" value={14.8} max={30} suffix="%" />
+          <ProgressRow label="予約転換" value={6.3} max={10} suffix="%" />
+          <ProgressRow label="ブロック率" value={0.6} max={3} suffix="%" />
         </div>
       </Panel>
+      <Panel title="顧客分析" sub="地域から目的へドリルダウンするイメージ">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold text-commo-hover">地域</p>
+            <h3 className="mt-1 text-lg font-bold text-commo-ink">九州 42%</h3>
+            <p className="mt-2 text-sm text-slate-500">福岡・熊本・鹿児島が中心</p>
+          </article>
+          <article className="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold text-commo-hover">九州内訳</p>
+            <h3 className="mt-1 text-lg font-bold text-commo-ink">熊本 × 観光</h3>
+            <p className="mt-2 text-sm text-slate-500">対象 184人 / 配信候補</p>
+          </article>
+        </div>
+      </Panel>
+      </div>
       <Panel title="反応が高い配信テーマ" sub={template.dashboardLabels.industryLabel}>
         <div className="space-y-3">
           {template.broadcastTemplates.slice(0, 6).map((item, index) => (
@@ -928,10 +1128,10 @@ function AiSuggestionsView({ template, overview }: { template: IndustryLineTempl
       <section className="rounded-md border border-commo-main bg-commo-main p-5 text-white shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-bold text-white/80">LINE運用AIエージェント</p>
-            <h2 className="mt-2 text-2xl font-bold">週次分析から施策作成・予約配信・改善まで自動実行</h2>
+            <p className="text-sm font-bold text-white/80">AI Marketing Assistant</p>
+            <h2 className="mt-2 text-2xl font-bold">おすすめターゲット、理由、施策、配信文まで提案</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/80">
-              アンケート、タグ、クリック、最終反応日を毎週読み込み、AIが対象分類、配信文、配信日時、改善方針を決めます。担当者は成果と停止条件だけを確認します。
+              アンケート、タグ、クリック、最終反応日を読み込み、AIが次に狙うべき顧客群と施策理由を提示します。配信文章は最後の実行手段です。
             </p>
           </div>
           <div className="rounded-md border border-white/20 bg-white/10 p-3">
@@ -963,7 +1163,7 @@ function AiSuggestionsView({ template, overview }: { template: IndustryLineTempl
         <MetricCard label="安全制御" value="有効" sub="夜間停止・頻度上限・ブロック率監視" />
       </div>
 
-      <Panel title="今週のAI自動運用プラン" sub="AIがセグメント、配信文、予約日時、狙いを自動生成します">
+      <Panel title="おすすめ施策" sub="AIがセグメント、理由、配信テーマ、メッセージを提案します">
         <div className="grid gap-3 xl:grid-cols-3">
           {weeklyPlans.map((plan) => (
             <article key={plan.title} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -1327,6 +1527,26 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <span className="font-semibold text-slate-500">{label}</span>
       <span className="font-bold text-slate-800">{value}</span>
     </div>
+  );
+}
+
+function TimelineRow({ date, label }: { date: string; label: string }) {
+  return (
+    <div className="flex gap-3 rounded-md bg-slate-50 px-3 py-2">
+      <span className="w-24 shrink-0 text-xs font-bold text-slate-400">{date}</span>
+      <span className="text-sm font-semibold text-slate-700">{label}</span>
+    </div>
+  );
+}
+
+function StaticSelect({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold text-slate-500">{label}</span>
+      <select value={value} onChange={() => undefined} className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-commo-ink outline-none">
+        <option>{value}</option>
+      </select>
+    </label>
   );
 }
 
